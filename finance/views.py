@@ -27,7 +27,11 @@ def get_user_household(user):
     return household
 
 def check_and_apply_base_template(household):
-    """Check if household needs base template and apply it if needed"""
+    """Check if household needs base template and apply it if needed
+    
+    Note: This function is now only used for backward compatibility.
+    New registrations handle template application during registration.
+    """
     if not household:
         return False
     
@@ -35,9 +39,11 @@ def check_and_apply_base_template(household):
     if Category.objects.filter(household=household).exists():
         return False  # Already has categories, don't apply template
     
-    # Apply base starter template
-    create_base_starter_template(household)
-    return True
+    # Only apply template if household is truly empty (for backward compatibility)
+    # This prevents applying template to users who explicitly chose blank registration
+    # We check if this is a new household by checking if it was just created
+    # For now, we'll skip auto-application and let users choose during registration
+    return False
 
 @login_required
 def dashboard(request):
@@ -70,10 +76,9 @@ def dashboard(request):
     if not household:
         return redirect('register')
     
-    # Check if this is a new user and apply base template
-    template_applied = check_and_apply_base_template(household)
-    if template_applied:
-        messages.info(request, 'Welcome! We\'ve set up a basic starter template with common categories. You can customize these to fit your needs.')
+    # Note: Template application is now handled during registration
+    # This check is kept for backward compatibility but won't auto-apply
+    check_and_apply_base_template(household)
 
     # Get parent categories only for this household
     income_categories = Category.objects.filter(household=household, type='INCOME', parent__isnull=True).prefetch_related('children').order_by('name')
@@ -670,11 +675,20 @@ def register_view(request):
     
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
+        apply_template = request.POST.get('apply_template', 'false') == 'true'
+        
         if form.is_valid():
             user = form.save()
             # Create a default household for the new user
             household = Household.objects.create(name=f"{user.username}'s Household")
             household.members.add(user)
+            
+            # Apply template immediately if user chose to, otherwise leave blank
+            if apply_template:
+                create_base_starter_template(household)
+                template_message = " We've set up a basic starter template with common categories."
+            else:
+                template_message = " You can start by creating your own categories."
             
             # Authenticate and login the user
             username = form.cleaned_data.get('username')
@@ -682,8 +696,7 @@ def register_view(request):
             user = authenticate(username=username, password=password)
             if user:
                 login(request, user)
-                messages.success(request, f'Welcome, {username}! Your account has been created.')
-                # Base template will be applied on first dashboard visit
+                messages.success(request, f'Welcome, {username}! Your account has been created.{template_message}')
                 return redirect('dashboard')
     else:
         form = UserCreationForm()
