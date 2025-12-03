@@ -321,6 +321,33 @@ def delete_category(request, category_id):
     return render(request, 'finance/category_confirm_delete.html', context)
 
 @login_required
+def clear_all_categories(request):
+    """Delete all categories for the user's household"""
+    household = get_user_household(request.user)
+    if not household:
+        return redirect('register')
+    
+    if request.method == 'POST':
+        # Get count before deletion for message
+        category_count = Category.objects.filter(household=household).count()
+        
+        # Delete all categories (this will cascade delete budgets and notes)
+        Category.objects.filter(household=household).delete()
+        
+        messages.success(request, f'All {category_count} categories have been deleted. You can now create your own categories.')
+        return redirect('category_list')
+    
+    # GET request - show confirmation
+    category_count = Category.objects.filter(household=household).count()
+    budget_count = Budget.objects.filter(category__household=household).count()
+    
+    context = {
+        'category_count': category_count,
+        'budget_count': budget_count,
+    }
+    return render(request, 'finance/clear_all_categories_confirm.html', context)
+
+@login_required
 @require_POST
 def move_category(request):
     """Move a sub-category to a new parent via AJAX"""
