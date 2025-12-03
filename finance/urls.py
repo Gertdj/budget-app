@@ -13,6 +13,7 @@ urlpatterns = [
     path('categories/bulk-add/', views.bulk_add_categories, name='bulk_add_categories'),
     path('categories/edit/<int:category_id>/', views.edit_category, name='edit_category'),
     path('categories/delete/<int:category_id>/', views.delete_category, name='delete_category'),
+    path('categories/clear-all/', views.clear_all_categories, name='clear_all_categories'),
     path('categories/move/', views.move_category, name='move_category'),
     path('add-category/', views.add_category, name='add_category'),
     path('budget/yearly/', views.yearly_budget_view, name='yearly_budget'),

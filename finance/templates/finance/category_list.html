@@ -7,6 +7,9 @@
         <div class="btn-group me-2 flex-wrap">
             <a href="{% url 'bulk_add_categories' %}" class="btn btn-sm btn-outline-primary mb-2 mb-md-0">Bulk Add Sub-categories</a>
             <a href="{% url 'add_category' %}" class="btn btn-sm btn-primary mb-2 mb-md-0">Add New Category</a>
+            {% if income_categories or expense_categories or savings_categories %}
+            <a href="{% url 'clear_all_categories' %}" class="btn btn-sm btn-outline-danger mb-2 mb-md-0">Clear All Categories</a>
+            {% endif %}
         </div>
     </div>
 </div>

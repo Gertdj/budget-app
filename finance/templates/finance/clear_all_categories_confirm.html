@@ -1,0 +1,44 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6">
+        <div class="card mt-5">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4 text-danger">⚠️ Clear All Categories</h2>
+                
+                <div class="alert alert-warning" role="alert">
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                
+                <p>You are about to delete <strong>all {{ category_count }} categories</strong> from your household.</p>
+                
+                {% if budget_count > 0 %}
+                <div class="alert alert-danger" role="alert">
+                    <strong>Important:</strong> This will also delete <strong>{{ budget_count }} budget entries</strong> associated with these categories.
+                </div>
+                {% endif %}
+                
+                <p class="mb-4">This action will:</p>
+                <ul>
+                    <li>Delete all categories (parent and sub-categories)</li>
+                    <li>Delete all budget entries for these categories</li>
+                    <li>Delete all category notes</li>
+                    <li>Keep transactions, but remove their category associations</li>
+                </ul>
+                
+                <p class="text-muted">After clearing, you can create your own custom categories from scratch.</p>
+                
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger btn-lg">Yes, Delete All Categories</button>
+                        <a href="{% url 'category_list' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
