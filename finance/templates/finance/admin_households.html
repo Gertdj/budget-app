@@ -1,0 +1,69 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Household Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Back to Admin Dashboard</a>
+        <a href="/admin/finance/household/add/" target="_blank" class="btn btn-sm btn-primary ms-2">Create Household (Django Admin)</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">All Households ({{ households|length }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Household Name</th>
+                        <th>Members</th>
+                        <th>Categories</th>
+                        <th>Budgets</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for household in households %}
+                    <tr>
+                        <td><strong>{{ household.name }}</strong></td>
+                        <td>
+                            <span class="badge bg-info">{{ household.member_count }} member{{ household.member_count|pluralize }}</span>
+                            {% if household.member_count > 0 %}
+                            <br>
+                            <small class="text-muted">
+                                {% for member in household.members.all|slice:":3" %}
+                                    {{ member.username }}{% if not forloop.last %}, {% endif %}
+                                {% endfor %}
+                                {% if household.member_count > 3 %}...{% endif %}
+                            </small>
+                            {% endif %}
+                        </td>
+                        <td>{{ household.category_count }}</td>
+                        <td>{{ household.budget_count }}</td>
+                        <td>{{ household.created_at|date:"Y-m-d" }}</td>
+                        <td>
+                            <a href="/admin/finance/household/{{ household.id }}/change/" target="_blank" class="btn btn-sm btn-outline-primary" title="Edit in Django Admin">
+                                Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No households found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-3" role="alert">
+    <strong>Note:</strong> For advanced household management (add/remove members, etc.), use the <a href="/admin/" target="_blank">Django Admin Panel</a>.
+</div>
+{% endblock %}
+

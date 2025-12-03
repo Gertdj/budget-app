@@ -1,0 +1,72 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">User Management</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-sm btn-outline-secondary">Back to Admin Dashboard</a>
+        <a href="/admin/auth/user/add/" target="_blank" class="btn btn-sm btn-primary ms-2">Create User (Django Admin)</a>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">All Users ({{ users_with_households|length }})</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>Date Joined</th>
+                        <th>Is Superuser</th>
+                        <th>Households</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in users_with_households %}
+                    <tr>
+                        <td><strong>{{ item.user.username }}</strong></td>
+                        <td>{{ item.user.email|default:"—" }}</td>
+                        <td>{{ item.user.date_joined|date:"Y-m-d" }}</td>
+                        <td>
+                            {% if item.user.is_superuser %}
+                            <span class="badge bg-danger">Yes</span>
+                            {% else %}
+                            <span class="badge bg-secondary">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.households %}
+                                {% for household in item.households %}
+                                    <span class="badge bg-info">{{ household.name }}</span>
+                                {% endfor %}
+                            {% else %}
+                                <span class="text-muted">No households</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="/admin/auth/user/{{ item.user.id }}/change/" target="_blank" class="btn btn-sm btn-outline-primary" title="Edit in Django Admin">
+                                Edit
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No users found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info mt-3" role="alert">
+    <strong>Note:</strong> For advanced user management (change passwords, permissions, etc.), use the <a href="/admin/" target="_blank">Django Admin Panel</a>.
+</div>
+{% endblock %}
+

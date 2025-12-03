@@ -1,0 +1,463 @@
+{% extends 'finance/base.html' %} {% load finance_extras %} {% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Budget: {{ year }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'yearly_budget_year' prev_year %}" class="btn btn-sm btn-outline-secondary">Previous
+                Year</a>
+            <a href="{% url 'yearly_budget_year' next_year %}" class="btn btn-sm btn-outline-secondary">Next Year</a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Side Panel Menu -->
+    <div class="col-md-3">
+        <div class="list-group sticky-top" style="top: 20px;">
+            <a href="#" class="list-group-item list-group-item-action section-menu-item" data-section="income">
+                <span class="text-success fs-5">💰</span> Income
+            </a>
+            <a href="#" class="list-group-item list-group-item-action section-menu-item active" data-section="expenses">
+                <span class="text-danger fs-5">💳</span> Expenses
+            </a>
+            <a href="#" class="list-group-item list-group-item-action section-menu-item" data-section="savings">
+                <span class="text-info fs-5">💎</span> Savings & Investments
+            </a>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="col-md-9">
+        <!-- Income Section -->
+        <div id="income-section" class="budget-section" style="display: none;">
+            <h3 class="mt-2 mb-3">Income</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            {% for month_name in month_names %}
+                            <th class="{% if active_month == forloop.counter %}table-info{% endif %}">{{ month_name }} {% if active_month == forloop.counter %}<a href="{% url 'open_budget_month' year forloop.counter %}" class="text-decoration-none" title="Open/Reset Month (Import Persistent)"><small>↻</small></a>{% endif %}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in income_budget_data %}
+                        <tr {% if item.is_parent %}class="fw-bold" {% endif %}>
+                            <td>{% if not item.is_parent %}&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}{{ item.category.name }}
+                            </td>
+                            {% for month in months %} {% with budget_info=item.months|get_item:month %}
+                            <td class="editable-cell{% if active_month == month %} table-info{% elif not item.category.is_persistent and budget_info.amount == 0 %} table-warning{% endif %}"
+                                data-category-id="{{ item.category.id }}" data-month="{{ month }}"
+                                data-year="{{ year }}" data-amount="{{ budget_info.amount }}" style="cursor: pointer;">
+                                {{ budget_info.amount }}</td>
+                            {% endwith %} {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Expenses Section -->
+        <div id="expenses-section" class="budget-section">
+            <h3 class="mt-2 mb-3">Expenses</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            {% for month_name in month_names %}
+                            <th class="{% if active_month == forloop.counter %}table-info{% endif %}">{{ month_name }} {% if active_month == forloop.counter %}<a href="{% url 'open_budget_month' year forloop.counter %}" class="text-decoration-none" title="Open/Reset Month (Import Persistent)"><small>↻</small></a>{% endif %}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in expense_budget_data %}
+                        <tr {% if item.has_children %}class="fw-bold parent-row" data-parent-id="{{ item.category.id }}"
+                            style="cursor: pointer;" {% elif item.is_parent %}class="fw-bold" {% else
+                            %}class="child-row" data-parent-id="{{ item.category.parent.id }}" style="display: none;" {%
+                            endif %}>
+                            <td>{% if item.has_children %}<span class="toggle-icon">▶</span> {{ item.category.name }}{%
+                                elif item.is_parent %}{{ item.category.name }}{% else %}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                                item.category.name }}{% endif %}</td>
+                            {% for month in months %}
+                            {% with budget_info=item.months|get_item:month %}
+                            <td class="{% if not item.has_children %}editable-cell{% else %}parent-cell{% endif %}{% if active_month == month %} table-info{% elif not item.has_children and not item.category.is_persistent and budget_info.amount == 0 %} table-warning{% endif %}"
+                                data-month="{{ month }}" {% if not item.has_children
+                                %}data-category-id="{{ item.category.id }}" data-year="{{ year }}"
+                                data-amount="{{ budget_info.amount }}" style="cursor: pointer;" {% else
+                                %}style="font-weight: bold; background-color: #f8f9fa;" {% endif %}>{{
+                                budget_info.amount }}{% if not item.has_children and item.category.payment_type ==
+                                'MANUAL' %}<input type="checkbox" class="form-check-input payment-checkbox float-end"
+                                    data-budget-id="{{ budget_info.budget_id }}" {% if budget_info.is_paid %}checked{%
+                                    endif %} style="margin-top: 0.2rem;">{% elif not item.has_children and
+                                budget_info.is_paid %}<small class="text-muted float-end">✓</small>{% endif %}</td>
+                            {% endwith %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Savings Section -->
+        <div id="savings-section" class="budget-section" style="display: none;">
+            <h3 class="mt-2 mb-3">Savings & Investments</h3>
+            <div class="table-responsive">
+                <table class="table table-striped table-sm">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            {% for month_name in month_names %}
+                            <th class="{% if active_month == forloop.counter %}table-info{% endif %}">{{ month_name }} {% if active_month == forloop.counter %}<a href="{% url 'open_budget_month' year forloop.counter %}" class="text-decoration-none" title="Open/Reset Month (Import Persistent)"><small>↻</small></a>{% endif %}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in savings_budget_data %}
+                        <tr {% if item.has_children %}class="fw-bold parent-row" data-parent-id="{{ item.category.id }}"
+                            style="cursor: pointer;" {% elif item.is_parent %}class="fw-bold" {% else endif %}>
+                            <td>{% if item.has_children %}<span class="toggle-icon">▶</span> {{ item.category.name }}{%
+                                elif item.is_parent %}{{ item.category.name }}{% else %}&nbsp;&nbsp;&nbsp;&nbsp;{{
+                                item.category.name }}{% endif %}</td>
+                            {% for month in months %} {% with budget_info=item.months|get_item:month %}
+                            <td class="{% if not item.has_children %}editable-cell{% else %}parent-cell{% endif %}{% if active_month == month %} table-info{% elif not item.has_children and not item.category.is_persistent and budget_info.amount == 0 %} table-warning{% endif %}"
+                                data-month="{{ month }}" {% if not item.has_children
+                                %}data-category-id="{{ item.category.id }}" data-year="{{ year }}"
+                                data-amount="{{ budget_info.amount }}" style="cursor: pointer;" {% else
+                                %}style="font-weight: bold; background-color: #f8f9fa;" {% endif %}>{{
+                                budget_info.amount }}{% if not item.has_children and item.category.payment_type ==
+                                'MANUAL' %}<input type="checkbox" class="form-check-input payment-checkbox float-end"
+                                    data-budget-id="{{ budget_info.budget_id }}" {% if budget_info.is_paid %}checked{%
+                                    endif %} style="margin-top: 0.2rem;">{% elif not item.has_children and
+                                budget_info.is_paid %}<small class="text-muted float-end">✓</small>{% endif %}</td>
+                            {% endwith %} {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+ection Switching
+    document.addEventListener('DOMContentLoaded', function () {
+        const menuItems = document.querySelectorAll('.section-menu-item');
+        const sections = document.querySelectorAll('.budget-section');
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetSection = this.dataset.section;
+
+                // Update active menu item
+                menuItems.forEach(mi => mi.classList.remove('active'));
+                this.classList.add('active');
+
+                // Show/hide sections
+                sections.forEach(section => {
+                    if (section.id === targetSection + '-section') {
+                        section.style.display = 'block';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                });
+            });
+        });
+    });
+</script>
+
+<script>
+    ment.addEventListener('DOMContentLoaded', function () {
+        // Use event delegation for better performance and to handle dynamic/hidden elements
+        const tableBodies = document.querySelectorAll('.table-responsive tbody');
+
+        tableBodies.forEach(tableBody => {
+            tableBody.addEventListener('click', function (e) {
+                // Find the closest editable cell
+                const cell = e.target.closest('.editable-cell');
+                if (!cell) return;
+
+                // Don't trigger if clicking on an input or checkbox
+                if (e.target.tagName === 'INPUT') return;
+
+                if (cell.querySelector('input[type="number"]')) return; // Already editing
+
+                const currentValue = cell.dataset.amount;
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.step = '0.01';
+                input.value = currentValue;
+                input.className = 'form-control form-control-sm';
+                input.style.width = '100px';
+
+                // Save original content to restore if needed (excluding the input we're about to add)
+                // But actually we want to replace the text content while keeping other elements if any?
+                // The cell only contains text and maybe a checkbox/checkmark.
+                // If it has a checkbox, we want to keep it? 
+                // The current logic clears the cell: this.textContent = '';
+                // But wait, if there's a checkbox, we lose it!
+
+                // Let's check the original logic:
+                // this.textContent = '';
+                // this.appendChild(input);
+
+                // If there's a checkbox, it's floating.
+                // We should probably hide the text and show input, or clear text only.
+                // But textContent = '' removes everything including children.
+
+                // Better approach: Hide the text node, or replace just the text.
+                // However, the original code did `this.textContent = ''`.
+                // Let's see if that caused issues with checkboxes.
+                // The checkbox is in the cell: 
+                // <td ...> {{ amount }} <input type="checkbox" ...> </td>
+
+                // If we wipe textContent, we wipe the checkbox!
+                // This is a bug in the original code too, if the user edits a cell with a checkbox.
+                // But wait, the checkbox is `float-end`.
+
+                // Let's fix this properly.
+
+                // Store the checkbox/checkmark if it exists
+                const checkbox = cell.querySelector('.payment-checkbox');
+                const checkmark = cell.querySelector('.text-muted');
+                const extraElements = [];
+                if (checkbox) extraElements.push(checkbox);
+                if (checkmark) extraElements.push(checkmark);
+
+                cell.textContent = '';
+                cell.appendChild(input);
+
+                // Re-append extra elements (checkbox/checkmark)
+                extraElements.forEach(el => cell.appendChild(el));
+
+                input.focus();
+                input.select();
+
+                const saveValue = () => {
+                    const newValue = input.value || '0';
+                    const categoryId = cell.dataset.categoryId;
+                    const month = cell.dataset.month;
+                    const year = cell.dataset.year;
+
+                    // Send AJAX request
+                    fetch('/budget/update/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: `category_id=${categoryId}&month=${month}&year=${year}&amount=${newValue}`
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Update data attribute
+                                cell.dataset.amount = data.amount;
+
+                                // Restore content
+                                cell.textContent = data.amount + ' '; // Add space for separation
+
+                                // Re-append extra elements
+                                extraElements.forEach(el => cell.appendChild(el));
+
+                                cell.style.backgroundColor = '#d4edda';
+                                setTimeout(() => {
+                                    cell.style.backgroundColor = '';
+                                }, 1000);
+
+                                // Update parent total if this is a child row
+                                const row = cell.closest('tr');
+                                if (row.classList.contains('child-row')) {
+                                    const parentId = row.dataset.parentId;
+                                    const parentRow = document.querySelector(`.parent-row[data-parent-id="${parentId}"]`);
+                                    if (parentRow) {
+                                        // Find all child rows for this parent
+                                        const childRows = document.querySelectorAll(`.child-row[data-parent-id="${parentId}"]`);
+                                        let total = 0;
+                                        childRows.forEach(childRow => {
+                                            // Find the cell for the same month
+                                            // We can find it by index or data-month if we added it to children too?
+                                            // Children have data-month on the editable-cell.
+                                            const childCell = childRow.querySelector(`.editable-cell[data-month="${month}"]`);
+                                            if (childCell) {
+                                                total += parseFloat(childCell.dataset.amount || 0);
+                                            }
+                                        });
+
+                                        // Update parent cell
+                                        const parentCell = parentRow.querySelector(`.parent-cell[data-month="${month}"]`);
+                                        if (parentCell) {
+                                            parentCell.textContent = total.toFixed(2);
+                                        }
+                                    }
+                                }
+                            } else {
+                                alert('Error saving budget: ' + (data.error || 'Unknown error'));
+                                // Restore original
+                                cell.textContent = currentValue + ' ';
+                                extraElements.forEach(el => cell.appendChild(el));
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('Error saving budget');
+                            // Restore original
+                            cell.textContent = currentValue + ' ';
+                            extraElements.forEach(el => cell.appendChild(el));
+                        });
+                };
+
+                input.addEventListener('blur', saveValue);
+                input.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        saveValue();
+                    }
+                });
+            });
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+
+
+
+<style>
+    .parent-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .parent-row.has-unpaid {
+        background-color: #fff3cd !important;
+    }
+
+    .toggle-icon {
+        display: inline-block;
+        transition: transform 0.2s;
+        margin-right: 5px;
+    }
+
+    .toggle-icon.expanded {
+        transform: rotate(90deg);
+    }
+</style>
+
+<script>
+    ment.addEventListener('DOMContentLoaded', function () {
+        // Collapsible parent categories
+        const parentRows = document.querySelectorAll('.parent-row');
+
+        parentRows.forEach(parentRow => {
+            const parentId = parentRow.dataset.parentId;
+            const childRows = document.querySelectorAll(`.child-row[data-parent-id="${parentId}"]`);
+            const toggleIcon = parentRow.querySelector('.toggle-icon');
+
+            // Check if any children are unpaid
+            let hasUnpaid = false;
+            childRows.forEach(childRow => {
+                const checkbox = childRow.querySelector('.payment-checkbox');
+                if (checkbox && !checkbox.checked) {
+                    hasUnpaid = true;
+                }
+            });
+
+            // Highlight parent if has unpaid children
+            if (hasUnpaid) {
+                parentRow.classList.add('has-unpaid');
+            }
+
+            // Click to toggle
+            parentRow.addEventListener('click', function (e) {
+                // Don't toggle if clicking on an input field
+                if (e.target.tagName === 'INPUT') return;
+
+                const isExpanded = toggleIcon.classList.contains('expanded');
+
+                if (isExpanded) {
+                    // Collapse
+                    toggleIcon.classList.remove('expanded');
+                    childRows.forEach(row => row.style.display = 'none');
+                } else {
+                    // Expand
+                    toggleIcon.classList.add('expanded');
+                    childRows.forEach(row => row.style.display = '');
+                }
+            });
+        });
+    });
+</script>
+
+<script>
+    ment.addEventListener('DOMContentLoaded', function () {
+        const paymentCheckboxes = document.querySelectorAll('.payment-checkbox');
+
+        paymentCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function (e) {
+                e.stopPropagation(); // Prevent cell edit
+                const budgetId = this.dataset.budgetId;
+                const cell = this.closest('td');
+
+                fetch('/budget/toggle-payment/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `budget_id=${budgetId}`
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            cell.style.backgroundColor = data.is_paid ? '#d4edda' : '';
+                            setTimeout(() => {
+                                cell.style.backgroundColor = '';
+                            }, 1000);
+                        } else {
+                            alert('Error: ' + (data.error || 'Unknown error'));
+                            this.checked = !this.checked;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error toggling payment');
+                        this.checked = !this.checked;
+                    });
+            });
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+
+{% endblock %}

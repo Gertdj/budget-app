@@ -1,0 +1,86 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Admin Dashboard</h1>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Users</h5>
+                <h2 class="text-primary">{{ total_users }}</h2>
+                <small class="text-muted">{{ recent_users }} new in last 7 days</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Households</h5>
+                <h2 class="text-info">{{ total_households }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Categories</h5>
+                <h2 class="text-success">{{ total_categories }}</h2>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title">Total Budgets</h5>
+                <h2 class="text-warning">{{ total_budgets }}</h2>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Top Households by Members</h5>
+            </div>
+            <div class="card-body">
+                {% if households_with_members %}
+                <div class="list-group">
+                    {% for household in households_with_members %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ household.name }}</strong>
+                            <br>
+                            <small class="text-muted">{{ household.member_count }} member{{ household.member_count|pluralize }}</small>
+                        </div>
+                        <a href="{% url 'admin_households' %}" class="btn btn-sm btn-outline-primary">View</a>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-muted">No households found.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'admin_users' %}" class="btn btn-primary">Manage Users</a>
+                    <a href="{% url 'admin_households' %}" class="btn btn-info">Manage Households</a>
+                    <a href="/admin/" target="_blank" class="btn btn-secondary">Django Admin Panel</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

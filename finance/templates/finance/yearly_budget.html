@@ -1,0 +1,1154 @@
+{% extends 'finance/base.html' %} {% load finance_extras %} {% block content %}
+<style>
+    /* Mobile optimizations for budget table */
+    @media (max-width: 768px) {
+        .table-responsive {
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            margin: 0 -15px;
+            padding: 0 15px;
+        }
+        
+        /* Landscape orientation optimizations */
+        @media (orientation: landscape) {
+            .table th {
+                font-size: 0.75rem;
+                padding: 0.5rem 0.35rem;
+            }
+            
+            .table td {
+                font-size: 0.85rem;
+                padding: 0.5rem 0.35rem;
+            }
+            
+            .table th .btn-group {
+                flex-direction: row;
+            }
+        }
+        
+        /* Portrait orientation - show rotation prompt */
+        @media (orientation: portrait) {
+            .rotate-prompt {
+                display: block !important;
+            }
+        }
+        
+        .rotate-prompt {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1rem;
+            margin: -15px -15px 15px -15px;
+            border-radius: 0.375rem 0.375rem 0 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .rotate-prompt .d-flex {
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .rotate-prompt .btn-close {
+            filter: invert(1);
+            opacity: 0.8;
+        }
+        
+        .rotate-prompt .btn-close:hover {
+            opacity: 1;
+        }
+        
+        .table th:first-child,
+        .table td:first-child {
+            box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+        }
+        
+        /* Make month headers more compact on mobile */
+        .table th {
+            font-size: 0.7rem;
+            padding: 0.5rem 0.25rem;
+            white-space: nowrap;
+        }
+        
+        .table th span {
+            font-size: 0.65rem;
+        }
+        
+        .table td {
+            font-size: 0.8rem;
+            padding: 0.5rem 0.25rem;
+        }
+        
+        /* Only month columns should not wrap */
+        .table td:not(:first-child) {
+            white-space: nowrap;
+        }
+        
+        /* Stack buttons vertically in month headers on mobile */
+        .table th .btn-group {
+            flex-direction: column;
+            gap: 2px;
+            align-items: flex-end;
+        }
+        
+        .table th .btn-group .btn {
+            padding: 0.125rem 0.25rem;
+            font-size: 0.65rem;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+        
+        /* Hide button text on very small screens, show only icons */
+        @media (max-width: 576px) {
+            .table th .btn-group .btn span:not(:first-child) {
+                display: none;
+            }
+            
+            .table th .btn-group .btn {
+                padding: 0.25rem;
+                min-width: 32px;
+            }
+        }
+        
+        /* Better spacing for mobile */
+        .budget-section h3 {
+            font-size: 1.25rem;
+        }
+        
+        /* Make category column wider on mobile for readability */
+        .table th:first-child,
+        .table td:first-child {
+            min-width: 180px;
+            max-width: 250px;
+        }
+        
+        /* Allow category names to wrap on mobile */
+        .table td:first-child {
+            white-space: normal;
+            word-wrap: break-word;
+            line-height: 1.3;
+        }
+        
+        /* Ensure sticky positioning works on mobile */
+        .table th[style*="sticky"],
+        .table td[style*="sticky"] {
+            position: -webkit-sticky;
+            position: sticky;
+        }
+    }
+</style>
+
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Budget: {{ year }}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{% url 'yearly_budget_year' prev_year %}" class="btn btn-sm btn-outline-secondary">Previous
+                Year</a>
+            <a href="{% url 'yearly_budget_year' next_year %}" class="btn btn-sm btn-outline-secondary">Next Year</a>
+        </div>
+        <div class="dropdown ms-2" style="margin-top: 0.5rem;">
+            <button type="button" class="btn btn-sm btn-success dropdown-toggle" id="exportDropdownBtn" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" style="white-space: nowrap; padding-left: 0.5rem; padding-right: 0.5rem;">
+                📊 Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdownBtn">
+                <li><a class="dropdown-item" href="{% url 'export_yearly_budget_excel' year %}">📅 Yearly Budget Overview</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_category_summary_excel' year %}">📋 Category Summary</a></li>
+                <li><a class="dropdown-item" href="{% url 'export_category_setup_excel' %}">⚙️ Category Setup</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'export_monthly_detail_excel' year active_month %}">📆 Current Month Detail</a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="{% url 'export_transactions_excel' %}">💰 All Transactions</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Side Panel Menu - Hidden on mobile, shown on desktop -->
+    <div class="col-12 col-md-2 mb-3 mb-md-0 d-none d-md-block">
+        <div class="list-group sticky-top" style="top: 20px;">
+            <a href="#" class="list-group-item list-group-item-action section-menu-item" data-section="income">
+                <span class="text-success fs-6">💰</span> Income
+            </a>
+            <a href="#" class="list-group-item list-group-item-action section-menu-item active" data-section="expenses">
+                <span class="text-danger fs-6">💳</span> Expenses
+            </a>
+            <a href="#" class="list-group-item list-group-item-action section-menu-item" data-section="savings">
+                <span class="text-info fs-6">💎</span> Savings & Investments
+            </a>
+        </div>
+    </div>
+
+    <!-- Mobile Menu - Shown only on mobile -->
+    <div class="col-12 d-md-none mb-3">
+        <div class="btn-group w-100" role="group">
+            <button type="button" class="btn btn-outline-success section-menu-item" data-section="income">
+                💰 Income
+            </button>
+            <button type="button" class="btn btn-outline-danger section-menu-item active" data-section="expenses">
+                💳 Expenses
+            </button>
+            <button type="button" class="btn btn-outline-info section-menu-item" data-section="savings">
+                💎 Savings
+            </button>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <div class="col-12 col-md-10">
+        <!-- Toolbar for section actions -->
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+            <div class="small text-muted">
+                <strong>Legend:</strong>
+                <span class="ms-2">
+                    <span class="badge bg-info text-dark" style="min-width: 12px;">&nbsp;</span>
+                    <span class="ms-1">Active month column</span>
+                </span>
+                <span class="ms-3">
+                    <span class="badge text-dark" style="background-color: #fff3cd; border: 1px solid #ffe69c; min-width: 12px;">&nbsp;</span>
+                    <span class="ms-1">Non‑persistent category with <strong>0</strong> budget (optional/off this month)</span>
+                </span>
+            </div>
+            <div>
+                <button type="button" id="collapseAllBtn" class="btn btn-sm btn-outline-secondary">
+                    Collapse all categories
+                </button>
+            </div>
+        </div>
+
+        <!-- Income Section -->
+        <div id="income-section" class="budget-section" style="display: none;">
+            <h3 class="mt-2 mb-3">Income</h3>
+            <!-- Rotation prompt for mobile portrait -->
+            <div class="rotate-prompt" id="rotatePromptIncome">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.5rem;">
+                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
+                        </svg>
+                        <span><strong>Rotate to Landscape</strong> for better viewing of the budget table</span>
+                    </div>
+                    <button type="button" class="btn-close" aria-label="Close" onclick="document.getElementById('rotatePromptIncome').style.display='none';"></button>
+                </div>
+            </div>
+            <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="table table-striped table-sm" style="min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 200px; max-width: 300px; position: sticky; left: 0; background-color: white; z-index: 10;">Category</th>
+                            {% for month_name in month_names %}
+                                                        <th class="{% if active_month == forloop.counter %}table-info{% endif %}" style="position: relative; min-width: 100px;">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <span>{{ month_name }}</span>
+                                                                {% if active_month == forloop.counter %}
+                                                                <div class="btn-group ms-2" role="group">
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#resetModal{{ forloop.counter }}" title="Initiate/Reset Month - Import persistent data from previous month" style="padding: 0.125rem 0.5rem; font-size: 0.875rem;">
+                                                                        <span>🔄</span> Reset
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#barebonesModal{{ forloop.counter }}" title="Apply Barebones Emergency Budget Template" style="padding: 0.125rem 0.5rem; font-size: 0.875rem;">
+                                                                        <span>⚡</span> Barebones
+                                                                    </button>
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in income_budget_data %}
+                        <tr {% if item.is_parent %}class="fw-bold" {% endif %}>
+                            <td style="min-width: 200px; max-width: 300px; position: sticky; left: 0; background-color: white; z-index: 5; white-space: normal; word-wrap: break-word; line-height: 1.3;">
+                                <div class="d-flex align-items-center">
+                                    <span>{% if not item.is_parent %}&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}{{ item.category.name }}</span>
+                                    {% if item.category.notes.exists %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ item.category.id }}" title="View/Add Notes ({{ item.category.notes.count }})" style="text-decoration: none; vertical-align: middle; flex-shrink: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16" style="color: #0d6efd;">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                        <span class="badge bg-primary rounded-pill" style="font-size: 0.6rem; margin-left: 2px;">{{ item.category.notes.count }}</span>
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ item.category.id }}" title="Add Note" style="text-decoration: none; vertical-align: middle; opacity: 0.5; flex-shrink: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% for month in months %} {% with budget_info=item.months|get_item:month %}
+                            <td class="editable-cell{% if active_month == month %} table-info{% elif not item.category.is_persistent and budget_info.amount == 0 %} table-warning{% endif %}"
+                                data-category-id="{{ item.category.id }}" data-month="{{ month }}"
+                                data-year="{{ year }}" data-amount="{{ budget_info.amount }}" style="cursor: pointer;">
+                                {{ budget_info.amount|currency }}</td>
+                            {% endwith %} {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Expenses Section -->
+        <div id="expenses-section" class="budget-section">
+            <h3 class="mt-2 mb-3">Expenses</h3>
+            <!-- Rotation prompt for mobile portrait -->
+            <div class="rotate-prompt" id="rotatePromptExpenses">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.5rem;">
+                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
+                        </svg>
+                        <span><strong>Rotate to Landscape</strong> for better viewing of the budget table</span>
+                    </div>
+                    <button type="button" class="btn-close" aria-label="Close" onclick="document.getElementById('rotatePromptExpenses').style.display='none';"></button>
+                </div>
+            </div>
+            <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="table table-striped table-sm" style="min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 200px; max-width: 300px; position: sticky; left: 0; background-color: white; z-index: 10;">Category</th>
+                            {% for month_name in month_names %}
+                                                        <th class="{% if active_month == forloop.counter %}table-info{% endif %}" style="position: relative; min-width: 100px;">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <span>{{ month_name }}</span>
+                                                                {% if active_month == forloop.counter %}
+                                                                <div class="btn-group ms-2" role="group">
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#resetModal{{ forloop.counter }}" title="Initiate/Reset Month - Import persistent data from previous month" style="padding: 0.125rem 0.5rem; font-size: 0.875rem;">
+                                                                        <span>🔄</span> Reset
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#barebonesModal{{ forloop.counter }}" title="Apply Barebones Emergency Budget Template" style="padding: 0.125rem 0.5rem; font-size: 0.875rem;">
+                                                                        <span>⚡</span> Barebones
+                                                                    </button>
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in expense_budget_data %}
+                        <tr {% if item.has_children %}class="fw-bold parent-row" data-parent-id="{{ item.category.id }}" style="cursor: pointer;"{% elif item.is_parent %}class="fw-bold"{% else %}class="child-row" data-parent-id="{{ item.category.parent.id }}" style="display: none;"{% endif %}>
+                            <td style="min-width: 200px; max-width: 300px; position: sticky; left: 0; background-color: white; z-index: 5; white-space: normal; word-wrap: break-word; line-height: 1.3;">
+                                <div class="d-flex align-items-center">
+                                    <span>{% if item.has_children %}<span class="toggle-icon">▶</span> {% elif item.is_parent %}{% else %}&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}{{ item.category.name }}</span>
+                                    {% if item.category.notes.exists %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ item.category.id }}" title="View/Add Notes ({{ item.category.notes.count }})" style="text-decoration: none; vertical-align: middle; flex-shrink: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16" style="color: #0d6efd;">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                        <span class="badge bg-primary rounded-pill" style="font-size: 0.6rem; margin-left: 2px;">{{ item.category.notes.count }}</span>
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ item.category.id }}" title="Add Note" style="text-decoration: none; vertical-align: middle; opacity: 0.5; flex-shrink: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% for month in months %}
+                            {% with budget_info=item.months|get_item:month %}
+                            <td class="{% if not item.has_children %}editable-cell{% else %}parent-cell{% endif %}{% if active_month == month %} table-info{% elif not item.has_children and not item.category.is_persistent and budget_info.amount == 0 %} table-warning{% endif %}" data-month="{{ month }}" {% if not item.has_children %}data-category-id="{{ item.category.id }}" data-year="{{ year }}" data-amount="{{ budget_info.amount }}" style="cursor: pointer;"{% else %}style="font-weight: bold;{% if active_month != month %} background-color: #f8f9fa;{% endif %}"{% endif %}>{{ budget_info.amount|currency }}{% if not item.has_children and item.category.payment_type == 'MANUAL' %}<input type="checkbox" class="form-check-input payment-checkbox float-end" data-budget-id="{{ budget_info.budget_id }}" {% if budget_info.is_paid %}checked{% endif %} style="margin-top: 0.2rem;">{% elif not item.has_children and budget_info.is_paid %}<small class="text-muted float-end">✓</small>{% endif %}</td>
+                            {% endwith %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Savings Section -->
+        <div id="savings-section" class="budget-section" style="display: none;">
+            <h3 class="mt-2 mb-3">Savings & Investments</h3>
+            <!-- Rotation prompt for mobile portrait -->
+            <div class="rotate-prompt" id="rotatePromptSavings">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div class="d-flex align-items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16" style="margin-right: 0.5rem;">
+                            <path d="M11.534 7h3.932a.25.25 0 0 1 .192.41l-1.966 2.36a.25.25 0 0 1-.384 0l-1.966-2.36a.25.25 0 0 1 .192-.41zm-11 2h3.932a.25.25 0 0 0 .192-.41L2.692 6.23a.25.25 0 0 0-.384 0L.342 8.59A.25.25 0 0 0 .534 9z"/>
+                            <path fill-rule="evenodd" d="M8 3c-1.552 0-2.94.707-3.857 1.818a.5.5 0 1 1-.771-.636A6.002 6.002 0 0 1 13.917 7H12.9A5.002 5.002 0 0 0 8 3zM3.1 9a5.002 5.002 0 0 0 8.757 2.182.5.5 0 1 1 .771.636A6.002 6.002 0 0 1 2.083 9H3.1z"/>
+                        </svg>
+                        <span><strong>Rotate to Landscape</strong> for better viewing of the budget table</span>
+                    </div>
+                    <button type="button" class="btn-close" aria-label="Close" onclick="document.getElementById('rotatePromptSavings').style.display='none';"></button>
+                </div>
+            </div>
+            <div class="table-responsive" style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table class="table table-striped table-sm" style="min-width: 600px;">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 200px; max-width: 300px; position: sticky; left: 0; background-color: white; z-index: 10;">Category</th>
+                            {% for month_name in month_names %}
+                                                        <th class="{% if active_month == forloop.counter %}table-info{% endif %}" style="position: relative; min-width: 100px;">
+                                                            <div class="d-flex justify-content-between align-items-center">
+                                                                <span>{{ month_name }}</span>
+                                                                {% if active_month == forloop.counter %}
+                                                                <div class="btn-group ms-2" role="group">
+                                                                    <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#resetModal{{ forloop.counter }}" title="Initiate/Reset Month - Import persistent data from previous month" style="padding: 0.125rem 0.5rem; font-size: 0.875rem;">
+                                                                        <span>🔄</span> Reset
+                                                                    </button>
+                                                                    <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#barebonesModal{{ forloop.counter }}" title="Apply Barebones Emergency Budget Template" style="padding: 0.125rem 0.5rem; font-size: 0.875rem;">
+                                                                        <span>⚡</span> Barebones
+                                                                    </button>
+                                                                </div>
+                                                                {% endif %}
+                                                            </div>
+                                                        </th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in savings_budget_data %}
+                        <tr {% if item.has_children %}class="fw-bold parent-row" data-parent-id="{{ item.category.id }}" style="cursor: pointer;"{% elif item.is_parent %}class="fw-bold"{% else %}class="child-row" data-parent-id="{{ item.category.parent.id }}" style="display: none;"{% endif %}>
+                            <td style="min-width: 200px; max-width: 300px; position: sticky; left: 0; background-color: white; z-index: 5; white-space: normal; word-wrap: break-word; line-height: 1.3;">
+                                <div class="d-flex align-items-center">
+                                    <span>{% if item.has_children %}<span class="toggle-icon">▶</span> {% elif item.is_parent %}{% else %}&nbsp;&nbsp;&nbsp;&nbsp;{% endif %}{{ item.category.name }}</span>
+                                    {% if item.category.notes.exists %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ item.category.id }}" title="View/Add Notes ({{ item.category.notes.count }})" style="text-decoration: none; vertical-align: middle; flex-shrink: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16" style="color: #0d6efd;">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                        <span class="badge bg-primary rounded-pill" style="font-size: 0.6rem; margin-left: 2px;">{{ item.category.notes.count }}</span>
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ item.category.id }}" title="Add Note" style="text-decoration: none; vertical-align: middle; opacity: 0.5; flex-shrink: 0;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            {% for month in months %} {% with budget_info=item.months|get_item:month %}
+                            <td class="{% if not item.has_children %}editable-cell{% else %}parent-cell{% endif %}{% if active_month == month %} table-info{% elif not item.has_children and not item.category.is_persistent and budget_info.amount == 0 %} table-warning{% endif %}" data-month="{{ month }}" {% if not item.has_children %}data-category-id="{{ item.category.id }}" data-year="{{ year }}" data-amount="{{ budget_info.amount }}" style="cursor: pointer;"{% else %}style="font-weight: bold;{% if active_month != month %} background-color: #f8f9fa;{% endif %}"{% endif %}>{{ budget_info.amount|currency }}{% if not item.has_children and item.category.payment_type == 'MANUAL' %}<input type="checkbox" class="form-check-input payment-checkbox float-end" data-budget-id="{{ budget_info.budget_id }}" {% if budget_info.is_paid %}checked{% endif %} style="margin-top: 0.2rem;">{% elif not item.has_children and budget_info.is_paid %}<small class="text-muted float-end">✓</small>{% endif %}</td>
+                            {% endwith %} {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+    .parent-row:hover {
+        background-color: #f8f9fa;
+    }
+
+    .parent-row.has-unpaid {
+        background-color: #fff3cd !important;
+    }
+
+    .toggle-icon {
+        display: inline-block;
+        transition: transform 0.2s;
+        margin-right: 5px;
+    }
+
+    .toggle-icon.expanded {
+        transform: rotate(90deg);
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Bootstrap should handle dropdowns automatically via data-bs-toggle attribute
+        // No custom JavaScript needed - Bootstrap auto-initializes dropdowns
+        
+        // 0. Orientation handling for mobile
+        function handleOrientation() {
+            const isMobile = window.innerWidth <= 768;
+            const isPortrait = window.innerHeight > window.innerWidth;
+            
+            if (isMobile && isPortrait) {
+                // Show rotation prompts
+                const prompts = document.querySelectorAll('.rotate-prompt');
+                prompts.forEach(prompt => {
+                    if (prompt.style.display !== 'none') {
+                        prompt.style.display = 'block';
+                    }
+                });
+            } else {
+                // Hide rotation prompts in landscape or on desktop
+                document.querySelectorAll('.rotate-prompt').forEach(prompt => {
+                    prompt.style.display = 'none';
+                });
+            }
+        }
+        
+        // Function to attempt landscape lock (must be called from user interaction)
+        function tryLockLandscape() {
+            // Check if API is available
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').then(() => {
+                    // Success! Hide prompts since we're now in landscape
+                    document.querySelectorAll('.rotate-prompt').forEach(prompt => {
+                        prompt.style.display = 'none';
+                    });
+                }).catch((err) => {
+                    // Failed - this is expected on iOS and many browsers
+                    // User will need to manually rotate
+                    console.log('Orientation lock not available:', err);
+                });
+            } else {
+                // API not supported (e.g., iOS Safari)
+                // User must manually rotate
+            }
+        }
+        
+        // Add click handler to rotation prompts to attempt lock
+        document.querySelectorAll('.rotate-prompt').forEach(prompt => {
+            const messageDiv = prompt.querySelector('.d-flex.align-items-center');
+            if (messageDiv) {
+                messageDiv.style.cursor = 'pointer';
+                messageDiv.addEventListener('click', function(e) {
+                    // Don't trigger if clicking the close button
+                    if (!e.target.closest('.btn-close')) {
+                        tryLockLandscape();
+                    }
+                });
+            }
+        });
+        
+        // Check orientation on load and on change
+        handleOrientation();
+        window.addEventListener('orientationchange', handleOrientation);
+        window.addEventListener('resize', handleOrientation);
+        
+        // 1. Section Switching
+        const menuItems = document.querySelectorAll('.section-menu-item');
+        const sections = document.querySelectorAll('.budget-section');
+
+        menuItems.forEach(item => {
+            item.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetSection = this.dataset.section;
+
+                // Update active menu item
+                menuItems.forEach(mi => mi.classList.remove('active'));
+                this.classList.add('active');
+
+                // Show/hide sections
+                sections.forEach(section => {
+                    if (section.id === targetSection + '-section') {
+                        section.style.display = 'block';
+                    } else {
+                        section.style.display = 'none';
+                    }
+                });
+            });
+        });
+
+        // 1a. Collapse All button - collapses all parent categories in the currently visible section
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        if (collapseAllBtn) {
+            collapseAllBtn.addEventListener('click', function () {
+                // Find the currently visible budget section (Income, Expenses, or Savings)
+                let activeSection = null;
+                sections.forEach(section => {
+                    const style = window.getComputedStyle(section);
+                    if (style.display !== 'none') {
+                        activeSection = section;
+                    }
+                });
+
+                if (!activeSection) {
+                    // Fallback: if none detected, do nothing
+                    return;
+                }
+
+                const parentRows = activeSection.querySelectorAll('.parent-row');
+                parentRows.forEach(parentRow => {
+                    const parentId = parentRow.dataset.parentId;
+                    const childRows = activeSection.querySelectorAll(`.child-row[data-parent-id="${parentId}"]`);
+                    const toggleIcon = parentRow.querySelector('.toggle-icon');
+
+                    // Remove expanded indicator
+                    if (toggleIcon) {
+                        toggleIcon.classList.remove('expanded');
+                    }
+
+                    // Hide all child rows
+                    childRows.forEach(row => {
+                        row.style.display = 'none';
+                    });
+                });
+            });
+        }
+
+        // 2. Editable Cells
+        const tableBodies = document.querySelectorAll('.table-responsive tbody');
+        tableBodies.forEach(tableBody => {
+            tableBody.addEventListener('click', function (e) {
+                const cell = e.target.closest('.editable-cell');
+                if (!cell) return;
+                // Don't trigger edit if clicking on checkbox
+                if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return;
+                // Don't trigger edit if clicking on the editing input field
+                if (e.target.tagName === 'INPUT' && e.target.type === 'text') return;
+                // Don't trigger edit if there's already an editing input field (not checkbox)
+                if (cell.querySelector('input[type="text"]')) return;
+
+                const currentValue = cell.dataset.amount;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.value = currentValue;
+                input.className = 'form-control form-control-sm';
+                input.style.width = '100px';
+
+                // Save original content
+                const originalContent = cell.innerHTML;
+                cell.innerHTML = '';
+                cell.appendChild(input);
+                input.focus();
+                input.select();
+
+                input.addEventListener('blur', function () {
+                    saveEdit(this, cell, originalContent);
+                });
+
+                input.addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') {
+                        this.blur();
+                    }
+                });
+            });
+        });
+
+        function saveEdit(input, cell, originalContent) {
+            const newValue = input.value;
+            const categoryId = cell.dataset.categoryId;
+            const month = cell.dataset.month;
+            const year = cell.dataset.year;
+
+            if (newValue === cell.dataset.amount) {
+                cell.innerHTML = originalContent;
+                return;
+            }
+
+            // Use API endpoint to update budget amount
+            fetch('/api/budgets/update_amount/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `category_id=${categoryId}&month=${month}&year=${year}&amount=${newValue}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    cell.dataset.amount = parseFloat(newValue).toFixed(2);
+                    
+                    // Extract checkbox or paid indicator from original content
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = originalContent;
+                    const checkbox = tempDiv.querySelector('.payment-checkbox');
+                    const isPaidIndicator = tempDiv.querySelector('small.text-muted');
+                    
+                    // Update the amount text
+                    const amountText = parseFloat(newValue).toFixed(2);
+                    
+                    // Rebuild cell content
+                    cell.innerHTML = amountText;
+                    if (checkbox) {
+                        // Preserve checkbox state and reattach event listener
+                        const newCheckbox = checkbox.cloneNode(true);
+                        cell.appendChild(newCheckbox);
+                        // Reattach event listener
+                        newCheckbox.addEventListener('change', function(e) {
+                            e.stopPropagation();
+                            const budgetId = this.dataset.budgetId;
+                            const cell = this.closest('td');
+                            
+                            // Use API endpoint to toggle payment status
+                            fetch(`/api/budgets/${budgetId}/toggle_payment/`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/x-www-form-urlencoded',
+                                    'X-CSRFToken': getCookie('csrftoken')
+                                },
+                                body: `budget_id=${budgetId}`
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success) {
+                                    cell.style.backgroundColor = data.is_paid ? '#d4edda' : '';
+                                    setTimeout(() => {
+                                        cell.style.backgroundColor = '';
+                                    }, 1000);
+                                } else {
+                                    alert('Error: ' + (data.error || 'Unknown error'));
+                                    this.checked = !this.checked;
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Error toggling payment');
+                                this.checked = !this.checked;
+                            });
+                        });
+                    } else if (isPaidIndicator) {
+                        cell.appendChild(isPaidIndicator.cloneNode(true));
+                    }
+                    
+                    cell.style.backgroundColor = '#d4edda';
+                    setTimeout(() => {
+                        cell.style.backgroundColor = '';
+                    }, 1000);
+                    
+                    // Update parent category total if this is a child category
+                    updateParentTotal(cell, month);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    cell.innerHTML = originalContent;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating budget');
+                cell.innerHTML = originalContent;
+            });
+        }
+
+        // 3. Collapsible parent categories
+        const parentRows = document.querySelectorAll('.parent-row');
+        parentRows.forEach(parentRow => {
+            const parentId = parentRow.dataset.parentId;
+            const childRows = document.querySelectorAll(`.child-row[data-parent-id="${parentId}"]`);
+            const toggleIcon = parentRow.querySelector('.toggle-icon');
+
+            // Check if any children are unpaid
+            let hasUnpaid = false;
+            childRows.forEach(childRow => {
+                const checkbox = childRow.querySelector('.payment-checkbox');
+                if (checkbox && !checkbox.checked) {
+                    hasUnpaid = true;
+                }
+            });
+
+            if (hasUnpaid) {
+                parentRow.classList.add('has-unpaid');
+            }
+
+            parentRow.addEventListener('click', function (e) {
+                if (e.target.tagName === 'INPUT') return;
+
+                const isExpanded = toggleIcon.classList.contains('expanded');
+                if (isExpanded) {
+                    toggleIcon.classList.remove('expanded');
+                    childRows.forEach(row => row.style.display = 'none');
+                } else {
+                    toggleIcon.classList.add('expanded');
+                    childRows.forEach(row => row.style.display = '');
+                }
+            });
+        });
+
+        // 4. Payment Checkboxes
+        const paymentCheckboxes = document.querySelectorAll('.payment-checkbox');
+        paymentCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function (e) {
+                e.stopPropagation();
+                const budgetId = this.dataset.budgetId;
+                const cell = this.closest('td');
+
+                // Use API endpoint to toggle payment status
+                fetch(`/api/budgets/${budgetId}/toggle_payment/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `budget_id=${budgetId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        cell.style.backgroundColor = data.is_paid ? '#d4edda' : '';
+                        setTimeout(() => {
+                            cell.style.backgroundColor = '';
+                        }, 1000);
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                        this.checked = !this.checked;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error toggling payment');
+                    this.checked = !this.checked;
+                });
+            });
+        });
+
+        function updateParentTotal(childCell, month) {
+            // Find the row containing this cell
+            const childRow = childCell.closest('tr');
+            if (!childRow) return;
+            
+            // Check if this is a child row
+            if (!childRow.classList.contains('child-row')) return;
+            
+            // Get the parent ID from the child row
+            const parentId = childRow.dataset.parentId;
+            if (!parentId) return;
+            
+            // Find the table containing this row
+            const table = childRow.closest('table');
+            if (!table) return;
+            
+            // Find the parent row in the same table
+            const parentRow = table.querySelector(`tr.parent-row[data-parent-id="${parentId}"]`);
+            if (!parentRow) return;
+            
+            // Get the column index of the updated cell (skip first column which is category name)
+            const allCells = Array.from(childRow.querySelectorAll('td'));
+            const cellIndex = allCells.indexOf(childCell);
+            if (cellIndex === -1) return;
+            
+            // Find all child rows with the same parent ID in the same table
+            const allChildRows = Array.from(table.querySelectorAll(`tr.child-row[data-parent-id="${parentId}"]`));
+            
+            // Calculate the sum for this month (using the same column index)
+            let total = 0;
+            allChildRows.forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells[cellIndex] && cells[cellIndex].classList.contains('editable-cell')) {
+                    const amount = parseFloat(cells[cellIndex].dataset.amount || 0);
+                    if (!isNaN(amount)) {
+                        total += amount;
+                    }
+                }
+            });
+            
+            // Find the parent cell at the same column index and update it
+            const parentCells = parentRow.querySelectorAll('td');
+            if (parentCells[cellIndex] && parentCells[cellIndex].classList.contains('parent-cell')) {
+                parentCells[cellIndex].textContent = total.toFixed(2);
+                parentCells[cellIndex].style.backgroundColor = '#d4edda';
+                setTimeout(() => {
+                    parentCells[cellIndex].style.backgroundColor = '';
+                }, 1000);
+            }
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Category Notes Functionality
+        let notesModal = null;
+        let currentCategoryId = null;
+
+        // Initialize modal when DOM is ready
+        const modalElement = document.getElementById('categoryNotesModal');
+        if (modalElement) {
+            notesModal = new bootstrap.Modal(modalElement);
+        }
+
+        // Handle notes button clicks - use event delegation for dynamically added buttons
+        document.addEventListener('click', function(e) {
+            const btn = e.target.closest('.category-notes-btn');
+            if (btn) {
+                e.preventDefault();
+                e.stopPropagation();
+                const categoryId = btn.dataset.categoryId;
+                if (!categoryId) {
+                    console.error('No category ID found on button');
+                    return;
+                }
+                currentCategoryId = categoryId;
+                
+                // Initialize modal if not already done
+                if (!notesModal && modalElement) {
+                    notesModal = new bootstrap.Modal(modalElement);
+                }
+                
+                if (notesModal) {
+                    loadCategoryNotes(categoryId);
+                    notesModal.show();
+                } else {
+                    console.error('Notes modal not found');
+                    alert('Error: Notes modal not available');
+                }
+            }
+        });
+
+        function loadCategoryNotes(categoryId) {
+            // Use API endpoint to load notes for a category
+            fetch(`/api/categories/${categoryId}/notes/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('notesCategoryName').textContent = data.category_name;
+                        const notesContainer = document.getElementById('notesList');
+                        const notesCount = document.getElementById('notesCount');
+                        
+                        const noteCount = data.notes.length;
+
+                        if (noteCount === 0) {
+                            notesContainer.innerHTML = '<p class="text-muted text-center">No notes yet. Add one below!</p>';
+                            notesCount.textContent = '0 notes';
+                        } else {
+                            notesCount.textContent = `${noteCount} note${noteCount !== 1 ? 's' : ''}`;
+                            notesContainer.innerHTML = data.notes.map(note => `
+                                <div class="card mb-2" data-note-id="${note.id}">
+                                    <div class="card-body p-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1" style="white-space: pre-wrap;">${escapeHtml(note.note)}</p>
+                                                <small class="text-muted">
+                                                    <strong>${escapeHtml(note.author)}</strong> • ${note.created_at}
+                                                </small>
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-link text-danger delete-note-btn" data-note-id="${note.id}" title="Delete note">
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-trash" viewBox="0 0 16 16">
+                                                    <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                                                    <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                            
+                            // Add delete handlers
+                            notesContainer.querySelectorAll('.delete-note-btn').forEach(btn => {
+                                btn.addEventListener('click', function() {
+                                    if (confirm('Are you sure you want to delete this note?')) {
+                                        deleteNote(this.dataset.noteId);
+                                    }
+                                });
+                            });
+                        }
+
+                        // Update the sticky-note badge/count on the main budget grid
+                        updateCategoryNotesBadge(categoryId, noteCount);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading notes:', error);
+                    alert('Error loading notes');
+                });
+        }
+
+        function deleteNote(noteId) {
+            // Use API endpoint to delete a note
+            fetch(`/api/category-notes/${noteId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Reload notes (badge & list will be updated in loadCategoryNotes)
+                    loadCategoryNotes(currentCategoryId);
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                }
+            })
+            .catch(error => {
+                console.error('Error deleting note:', error);
+                alert('Error deleting note');
+            });
+        }
+
+        // Handle add note form
+        const addNoteForm = document.getElementById('addNoteForm');
+        if (addNoteForm) {
+            addNoteForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                const noteText = document.getElementById('newNoteText').value.trim();
+                if (!noteText) {
+                    alert('Please enter a note');
+                    return false;
+                }
+
+                // Use API endpoint to add a note
+                fetch(`/api/categories/${currentCategoryId}/notes/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `note=${encodeURIComponent(noteText)}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('newNoteText').value = '';
+                        // Reload notes (badge & list will be updated in loadCategoryNotes)
+                        loadCategoryNotes(currentCategoryId);
+                    } else {
+                        alert('Error: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error adding note:', error);
+                    alert('Error adding note');
+                });
+
+                return false;
+            });
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Keep the small sticky-note badge in sync with the actual note count
+        function updateCategoryNotesBadge(categoryId, count) {
+            const btn = document.querySelector(`.category-notes-btn[data-category-id="${categoryId}"]`);
+            if (!btn) return;
+
+            let badge = btn.querySelector('.badge');
+
+            if (count > 0) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.className = 'badge bg-primary rounded-pill';
+                    badge.style.fontSize = '0.6rem';
+                    badge.style.marginLeft = '2px';
+                    btn.appendChild(badge);
+                }
+                badge.textContent = count;
+                btn.style.opacity = '1';
+                btn.title = `View/Add Notes (${count})`;
+            } else {
+                if (badge) {
+                    badge.remove();
+                }
+                btn.style.opacity = '0.5';
+                btn.title = 'Add Note';
+            }
+        }
+    });
+</script>
+
+<!-- Category Notes Modal -->
+<div class="modal fade" id="categoryNotesModal" tabindex="-1" aria-labelledby="categoryNotesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="categoryNotesModalLabel">
+                    Notes for <span id="notesCategoryName"></span>
+                    <small class="text-muted ms-2" id="notesCount"></small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="notesList" style="max-height: 400px; overflow-y: auto;">
+                    <!-- Notes will be loaded here -->
+                </div>
+                <hr>
+                <form id="addNoteForm">
+                    <div class="mb-3">
+                        <label for="newNoteText" class="form-label">Add New Note</label>
+                        <textarea class="form-control" id="newNoteText" rows="3" placeholder="Enter your note here..." required></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Note</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reset Confirmation Modals -->
+{% for month_name in month_names %}
+{% with month_num=forloop.counter %}
+{% if active_month == month_num %}
+<div class="modal fade" id="resetModal{{ month_num }}" tabindex="-1" aria-labelledby="resetModalLabel{{ month_num }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resetModalLabel{{ month_num }}">Reset {{ month_name }} {{ year }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    <strong>Warning:</strong> This will reset the month's budget amounts.
+                </div>
+                <p><strong>What will happen:</strong></p>
+                <ul>
+                    {% if month_num > 1 %}
+                        <li>Persistent categories will import amounts from the previous month</li>
+                    {% else %}
+                        <li>Persistent categories will import amounts from <strong>December {{ year|add:"-1" }}</strong></li>
+                    {% endif %}
+                    <li>Non-persistent categories will be set to <strong>0</strong></li>
+                    <li>All current amounts for this month will be <strong>overwritten</strong></li>
+                </ul>
+                <p class="text-danger"><strong>This action cannot be undone.</strong> If you want to restore your current budget, you'll need to manually edit the amounts back.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'open_budget_month' year month_num %}" class="btn btn-primary">Yes, Reset Month</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="barebonesModal{{ month_num }}" tabindex="-1" aria-labelledby="barebonesModalLabel{{ month_num }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="barebonesModalLabel{{ month_num }}">Apply Barebones Template to {{ month_name }} {{ year }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    <strong>Warning:</strong> This will adjust budget amounts to essential-only spending.
+                </div>
+                <p><strong>What will happen:</strong></p>
+                <ul>
+                    <li><strong>Essential categories</strong> (marked as Essential in category settings) will <strong>keep current amounts</strong></li>
+                    <li><strong>Non-essential categories</strong> (marked as Non-essential in category settings) will be <strong>set to 0</strong></li>
+                    <li><strong>Income</strong> categories will remain unchanged</li>
+                </ul>
+                <p class="text-info"><strong>Note:</strong> All categories default to Essential for safety. Edit categories individually to mark them as Non-essential if needed.</p>
+                <p><strong>To revert:</strong> You can use the <strong>Reset</strong> button to import from the previous month, or manually edit amounts back.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <a href="{% url 'apply_barebones_template' year month_num %}" class="btn btn-warning">Yes, Apply Barebones Template</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endwith %}
+{% endfor %}
+{% endblock %}

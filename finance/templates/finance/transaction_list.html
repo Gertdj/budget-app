@@ -1,0 +1,39 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        All Transactions
+    </div>
+    <div class="card-body">
+        {% if transactions %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Description</th>
+                        <th>Category</th>
+                        <th class="text-end">Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in transactions %}
+                    <tr>
+                        <td>{{ t.date }}</td>
+                        <td>{{ t.description }}</td>
+                        <td><span class="badge bg-light text-dark">{{ t.category.name }}</span></td>
+                        <td class="text-end {% if t.type == 'INCOME' %}income-text{% else %}expense-text{% endif %}">
+                            {% if t.type == 'INCOME' %}+{% else %}-{% endif %}R{{ t.amount }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted text-center my-4">No transactions found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

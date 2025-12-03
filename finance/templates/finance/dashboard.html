@@ -1,0 +1,613 @@
+{% extends 'finance/base.html' %}
+{% load finance_extras %}
+
+{% block content %}
+<style>
+    .sticky-top-section {
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        background-color: #f8f9fa;
+        padding-bottom: 15px;
+        margin-bottom: 15px;
+        border-bottom: 2px solid #dee2e6;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .scrollable-sections {
+        max-height: calc(100vh - 400px);
+        overflow-y: auto;
+        padding-right: 5px;
+    }
+
+    /* Mobile adjustments */
+    @media (max-width: 768px) {
+        .sticky-top-section {
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        .scrollable-sections {
+            max-height: none;
+            overflow-y: visible;
+        }
+
+        /* Make charts smaller on mobile */
+        .card-body div[style*="height"] {
+            height: 300px !important;
+        }
+        
+        /* Ensure chart container has proper dimensions on mobile */
+        .chart-container {
+            min-height: 300px;
+            width: 100%;
+        }
+        
+        /* Fix canvas rendering on mobile */
+        .chart-container canvas {
+            max-width: 100%;
+            height: auto !important;
+        }
+        
+        /* Make total labels smaller on mobile to fit iPhone screen */
+        .card-body h2 {
+            font-size: 1.25rem !important;
+            line-height: 1.2;
+        }
+        
+        .card-body h5 {
+            font-size: 0.7rem !important;
+            margin-bottom: 0.25rem !important;
+        }
+        
+        /* Reduce card padding on mobile */
+        .card-body {
+            padding: 0.75rem !important;
+        }
+        
+        /* Better export button positioning on mobile - narrower and left aligned */
+        .btn-toolbar .btn-group.ms-2 {
+            margin-left: 0.5rem !important;
+        }
+        
+        .btn-toolbar .btn-group.ms-2 .btn {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+    }
+    .scrollable-sections::-webkit-scrollbar {
+        width: 8px;
+    }
+    .scrollable-sections::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+    .scrollable-sections::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 4px;
+    }
+    .scrollable-sections::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    /* Freeze the colored headers for Income, Expenses, Savings & Investments
+       so they stay visible at the top of the scrollable area */
+    .scrollable-sections .card-header.bg-success,
+    .scrollable-sections .card-header.bg-danger,
+    .scrollable-sections .card-header.bg-info {
+        position: sticky;
+        top: 0;
+        z-index: 80;
+    }
+</style>
+
+<div class="sticky-top-section">
+    <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3">
+        <h1 class="h2 mb-2 mb-md-0">Budget Plan - {{ active_date|date:"F Y" }}</h1>
+        <div class="btn-toolbar mb-2 mb-md-0">
+            <div class="btn-group me-2">
+                <a href="?year={{ prev_month_year }}&month={{ prev_month_month }}" class="btn btn-sm btn-outline-secondary">Previous</a>
+                <button type="button" class="btn btn-sm btn-outline-secondary disabled fw-bold">{{ active_date|date:"F Y" }}</button>
+                <a href="?year={{ next_month_year }}&month={{ next_month_month }}" class="btn btn-sm btn-outline-secondary">Next</a>
+            </div>
+            <a href="{% url 'export_monthly_detail_excel' active_date.year active_date.month %}" class="btn btn-sm btn-success ms-2" title="Export this month to Excel" style="white-space: nowrap; padding-left: 0.5rem; padding-right: 0.5rem; margin-top: 0.5rem;">
+                📊 Export
+            </a>
+        </div>
+    </div>
+
+    {% if unpaid_count > 0 %}
+    <div class="alert alert-warning" role="alert">
+        <strong>{{ unpaid_count }}</strong> payment{{ unpaid_count|pluralize }} outstanding.
+        <a href="{% url 'outstanding_payments' %}" class="alert-link">View outstanding payments</a>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+            <div class="card income-text h-100">
+                <div class="card-body">
+                    <h5 class="text-muted small">Total Income</h5>
+                    <h2 class="mb-0">R {{ total_income|currency }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+            <div class="card expense-text h-100">
+                <div class="card-body">
+                    <h5 class="text-muted small">Total Expenses</h5>
+                    <h2 class="mb-0">R {{ total_expenses|currency }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+            <div class="card text-info h-100">
+                <div class="card-body">
+                    <h5 class="text-muted small">Total Savings</h5>
+                    <h2 class="mb-0">R {{ total_savings|currency }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 mb-3 mb-md-0">
+            <div class="card balance-text h-100">
+                <div class="card-body">
+                    <h5 class="text-muted small">Balance</h5>
+                    <h2 class="mb-0">R {{ balance|currency }}</h2>
+                    {% if balance < 0 %} <small class="text-danger d-block mt-1">⚠️ Over-allocated!</small>
+                        {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="scrollable-sections">
+<div class="row mt-4">
+    <div class="col-12 col-md-4 mb-4 mb-md-0">
+        <div class="card">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0">Income</h5>
+            </div>
+            <div class="card-body">
+                {% if income_budgets %}
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for budget in income_budgets %}
+                        <tr>
+                            <td>{{ budget.category.name }}</td>
+                            <td class="text-end">R {{ budget.amount|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No income budgeted for this month. <a href="{% url 'yearly_budget' %}">Set up your
+                        budget</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4 mb-4 mb-md-0">
+        <div class="card">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">Expenses</h5>
+            </div>
+            <div class="card-body">
+                {% if expense_budgets %}
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for budget in expense_budgets %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'yearly_budget' %}" class="text-decoration-none text-dark">{{ budget.category.name }}</a>
+                            </td>
+                            <td class="text-end">R {{ budget.amount|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No expenses budgeted for this month. <a href="{% url 'yearly_budget' %}">Set up
+                        your budget</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-4 mb-4 mb-md-0">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Savings & Investments</h5>
+            </div>
+            <div class="card-body">
+                {% if savings_budgets %}
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th class="text-end">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for budget in savings_budgets %}
+                        <tr>
+                            <td>
+                                <a href="{% url 'yearly_budget' %}" class="text-decoration-none text-dark">{{ budget.category.name }}</a>
+                            </td>
+                            <td class="text-end">R {{ budget.amount|currency }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">No savings budgeted for this month. <a href="{% url 'yearly_budget' %}">Set up
+                        your budget</a></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-12 col-md-6 mb-4 mb-md-0">
+        <div class="card h-100">
+            <div class="card-header">
+                Budget Overview
+            </div>
+            <div class="card-body">
+                <div style="height: 300px; position: relative;">
+                    <canvas id="overviewChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 mb-4 mb-md-0">
+        <div class="card h-100">
+            <div class="card-header">
+                Income Allocation (Expenses & Savings)
+            </div>
+            <div class="card-body">
+                <div class="chart-container" style="height: 400px; position: relative;">
+                    <canvas id="expensesChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Overview Chart
+        const overviewCtx = document.getElementById('overviewChart').getContext('2d');
+        new Chart(overviewCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Income', 'Expenses', 'Savings'],
+                datasets: [{
+                    label: 'Amount (R)',
+                    data: [{{ total_income }}, {{ total_expenses }}, {{ total_savings }}],
+                    backgroundColor: [
+                        'rgba(25, 135, 84, 0.7)',  // Success/Green
+                        'rgba(220, 53, 69, 0.7)',  // Danger/Red
+                        'rgba(13, 202, 240, 0.7)'  // Info/Teal
+                    ],
+                    borderColor: [
+                        'rgba(25, 135, 84, 1)',
+                        'rgba(220, 53, 69, 1)',
+                        'rgba(13, 202, 240, 1)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: 2,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function (value) {
+                                return 'R ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'R ' + context.parsed.y.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Expenses Breakdown Chart - Multi-layered showing expenses, savings, and income
+        const expensesCanvas = document.getElementById('expensesChart');
+        if (!expensesCanvas) {
+            console.error('expensesChart canvas element not found');
+            return;
+        }
+        const expensesCtx = expensesCanvas.getContext('2d');
+        
+        // Detect if we're on mobile
+        const isMobile = window.innerWidth < 768;
+        
+        // Prepare expense data and filter out zero amounts
+        const allExpenseData = [
+            {% for item in expense_budgets %}
+            {
+                label: "{{ item.category.name|escapejs }}",
+                value: {{ item.amount }},
+                type: 'expense'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Prepare savings data and filter out zero amounts
+        const allSavingsData = [
+            {% for item in savings_budgets %}
+            {
+                label: "{{ item.category.name|escapejs }}",
+                value: {{ item.amount }},
+                type: 'savings'
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        // Filter out zero or negative amounts
+        const expenseDataFiltered = allExpenseData.filter(item => item.value > 0);
+        const savingsDataFiltered = allSavingsData.filter(item => item.value > 0);
+        
+        const expenseLabels = expenseDataFiltered.map(item => item.label);
+        const expenseData = expenseDataFiltered.map(item => item.value);
+        const savingsLabels = savingsDataFiltered.map(item => item.label);
+        const savingsData = savingsDataFiltered.map(item => item.value);
+        
+        const totalIncome = {{ total_income }};
+        const totalExpenses = expenseData.reduce((a, b) => a + b, 0);
+        const totalSavings = savingsData.reduce((a, b) => a + b, 0);
+        const remainingAfterAll = Math.max(0, totalIncome - totalExpenses - totalSavings);
+
+        // Generate colors - red tones for expenses, teal/blue for savings
+        const expenseColors = [
+            '#FF6384', '#FF6B6B', '#FF8787', '#FF9999', '#FFB3B3', '#FF6B9D',
+            '#E63946', '#DC3545', '#C1121F', '#A4161A', '#B34D4D', '#CC0000'
+        ];
+        const savingsColors = [
+            '#36A2EB', '#4BC0C0', '#0DCAF0', '#13CE66', '#00D9FF', '#1AB399',
+            '#0DCAF0', '#20C997', '#17A2B8', '#138496', '#0F6674', '#0A4D5C'
+        ];
+
+        if ((expenseLabels.length > 0 || savingsLabels.length > 0) && totalIncome > 0) {
+            // Ensure canvas has proper dimensions
+            const chartContainer = expensesCanvas.parentElement;
+            if (chartContainer) {
+                chartContainer.style.width = '100%';
+                chartContainer.style.height = isMobile ? '300px' : '400px';
+            }
+            // Combine expenses and savings with labels
+            const allLabels = [];
+            const allData = [];
+            const allColors = [];
+            const allTypes = [];
+            
+            // Add expenses first
+            expenseLabels.forEach((label, i) => {
+                allLabels.push(label);
+                allData.push(expenseData[i]);
+                allColors.push(expenseColors[i % expenseColors.length]);
+                allTypes.push('expense');
+            });
+            
+            // Add savings
+            savingsLabels.forEach((label, i) => {
+                allLabels.push(label);
+                allData.push(savingsData[i]);
+                allColors.push(savingsColors[i % savingsColors.length]);
+                allTypes.push('savings');
+            });
+            
+            // Add remaining if positive
+            if (remainingAfterAll > 0) {
+                allLabels.push('Remaining After Expenses & Savings');
+                allData.push(remainingAfterAll);
+                allColors.push('rgba(200, 200, 200, 0.4)');
+                allTypes.push('remaining');
+            }
+            
+            new Chart(expensesCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: allLabels,
+                    datasets: [{
+                        label: 'Expenses, Savings & Income',
+                        data: allData,
+                        backgroundColor: allColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false, // Allow chart to use full container
+                    cutout: isMobile ? '60%' : '55%', // Larger cutout on mobile for better visibility
+                    layout: {
+                        padding: {
+                            right: isMobile ? 10 : 30, // Less padding on mobile
+                            left: 10,
+                            top: 10,
+                            bottom: isMobile ? 20 : 10 // More bottom padding on mobile for legend
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: isMobile ? 'bottom' : 'right', // Move legend to bottom on mobile
+                            align: 'start',
+                            maxWidth: isMobile ? 300 : 450, // Smaller max width on mobile
+                            labels: {
+                                padding: isMobile ? 8 : 12,
+                                usePointStyle: true,
+                                font: {
+                                    size: isMobile ? 10 : 12
+                                },
+                                boxWidth: 12,
+                                boxHeight: 12,
+                                maxWidth: isMobile ? 280 : 430, // Allow longer text descriptions
+                                textAlign: 'left',
+                                wrap: true, // Allow text wrapping if needed
+                                generateLabels: function(chart) {
+                                    const data = chart.data;
+                                    const labels = [];
+                                    
+                                    // Group expenses - show as one entry
+                                    if (totalExpenses > 0) {
+                                        const expensePercent = ((totalExpenses / totalIncome) * 100).toFixed(1);
+                                        labels.push({
+                                            text: 'Expenses: R ' + totalExpenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' (' + expensePercent + '% of income)',
+                                            fillStyle: '#DC3545', // Red color for expenses
+                                            hidden: false,
+                                            index: 0
+                                        });
+                                    }
+                                    
+                                    // Group savings - show as one entry
+                                    if (totalSavings > 0) {
+                                        const savingsPercent = ((totalSavings / totalIncome) * 100).toFixed(1);
+                                        labels.push({
+                                            text: 'Savings & Investments: R ' + totalSavings.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' (' + savingsPercent + '% of income)',
+                                            fillStyle: '#0DCAF0', // Teal color for savings
+                                            hidden: false,
+                                            index: 1
+                                        });
+                                    }
+                                    
+                                    // Add remaining if positive
+                                    if (remainingAfterAll > 0) {
+                                        const remainingPercent = ((remainingAfterAll / totalIncome) * 100).toFixed(1);
+                                        labels.push({
+                                            text: 'Remaining: R ' + remainingAfterAll.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' (' + remainingPercent + '% of income)',
+                                            fillStyle: 'rgba(200, 200, 200, 0.4)',
+                                            hidden: false,
+                                            index: 2
+                                        });
+                                    }
+                                    
+                                    // Add income reference at the end
+                                    labels.push({
+                                        text: '━━━━━━━━━━━━━━━━━━━━',
+                                        fillStyle: 'transparent',
+                                        hidden: false,
+                                        index: 3
+                                    });
+                                    labels.push({
+                                        text: 'Total Income: R ' + totalIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}),
+                                        fillStyle: 'rgba(25, 135, 84, 0.8)',
+                                        hidden: false,
+                                        index: 4
+                                    });
+                                    
+                                    return labels;
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed || context.raw;
+                                    const incomePercent = ((value / totalIncome) * 100).toFixed(1);
+                                    const index = context.dataIndex;
+                                    const itemType = allTypes[index];
+                                    
+                                    if (label === 'Remaining After Expenses & Savings') {
+                                        return 'Remaining: R ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + 
+                                               ' (' + incomePercent + '% of income)';
+                                    } else {
+                                        let categoryPercent = '0';
+                                        if (itemType === 'expense' && totalExpenses > 0) {
+                                            categoryPercent = ((value / totalExpenses) * 100).toFixed(1);
+                                            return label + ': R ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + 
+                                                   ' (' + categoryPercent + '% of expenses, ' + incomePercent + '% of income)';
+                                        } else if (itemType === 'savings' && totalSavings > 0) {
+                                            categoryPercent = ((value / totalSavings) * 100).toFixed(1);
+                                            return label + ': R ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + 
+                                                   ' (' + categoryPercent + '% of savings, ' + incomePercent + '% of income)';
+                                        } else {
+                                            return label + ': R ' + value.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + 
+                                                   ' (' + incomePercent + '% of income)';
+                                        }
+                                    }
+                                },
+                                footer: function(tooltipItems) {
+                                    const expensePercent = ((totalExpenses / totalIncome) * 100).toFixed(1);
+                                    const savingsPercent = ((totalSavings / totalIncome) * 100).toFixed(1);
+                                    const totalAllocated = ((totalExpenses + totalSavings) / totalIncome) * 100;
+                                    return 'Expenses: ' + expensePercent + '% | Savings: ' + savingsPercent + '% | Total Allocated: ' + totalAllocated.toFixed(1) + '% of income';
+                                }
+                            }
+                        }
+                    }
+                },
+                plugins: [{
+                    id: 'centerText',
+                    beforeDraw: function(chart) {
+                        const ctx = chart.ctx;
+                        const centerX = chart.chartArea.left + (chart.chartArea.right - chart.chartArea.left) / 2;
+                        const centerY = chart.chartArea.top + (chart.chartArea.bottom - chart.chartArea.top) / 2;
+                        
+                        // Detect mobile inside the function
+                        const isMobileDevice = window.innerWidth < 768;
+                        const fontSize = isMobileDevice ? 12 : 16;
+                        const smallFontSize = isMobileDevice ? 10 : 14;
+                        const tinyFontSize = isMobileDevice ? 9 : 12;
+                        
+                        ctx.save();
+                        ctx.font = 'bold ' + fontSize + 'px Arial';
+                        ctx.fillStyle = '#198754';
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText('Total Income', centerX, centerY - (isMobileDevice ? 8 : 10));
+                        
+                        ctx.font = smallFontSize + 'px Arial';
+                        ctx.fillText('R ' + totalIncome.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}), centerX, centerY + (isMobileDevice ? 8 : 10));
+                        
+                        const expensePercent = ((totalExpenses / totalIncome) * 100).toFixed(1);
+                        const savingsPercent = ((totalSavings / totalIncome) * 100).toFixed(1);
+                        const totalAllocated = ((totalExpenses + totalSavings) / totalIncome) * 100;
+                        ctx.font = tinyFontSize + 'px Arial';
+                        ctx.fillStyle = '#dc3545';
+                        ctx.fillText('Expenses: ' + expensePercent + '%', centerX, centerY + (isMobileDevice ? 20 : 28));
+                        ctx.fillStyle = '#0DCAF0';
+                        ctx.fillText('Savings: ' + savingsPercent + '%', centerX, centerY + (isMobileDevice ? 32 : 44));
+                        ctx.fillStyle = '#666';
+                        ctx.fillText('Total: ' + totalAllocated.toFixed(1) + '%', centerX, centerY + (isMobileDevice ? 44 : 60));
+                        
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,574 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Categories</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2 flex-wrap">
+            <a href="{% url 'bulk_add_categories' %}" class="btn btn-sm btn-outline-primary mb-2 mb-md-0">Bulk Add Sub-categories</a>
+            <a href="{% url 'add_category' %}" class="btn btn-sm btn-primary mb-2 mb-md-0">Add New Category</a>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-info" role="alert">
+    <strong>Tip:</strong> Drag and drop sub-categories to move them between parent categories.
+</div>
+
+<style>
+    .col-header {
+        font-weight: normal;
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .col-check {
+        width: 80px;
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .col-name {
+        flex-grow: 1;
+        min-width: 0;
+        /* Prevent text overflow issues */
+    }
+
+    .col-action {
+        width: 40px;
+        text-align: end;
+    }
+
+    .check-mark {
+        color: #198754;
+        /* Bootstrap success color */
+        font-weight: bold;
+    }
+
+    /* Mobile optimizations */
+    @media (max-width: 768px) {
+        .col-check {
+            width: 60px;
+            font-size: 0.875rem;
+        }
+        
+        .col-action {
+            width: 35px;
+        }
+        
+        /* Make category names more readable on mobile */
+        .col-name {
+            font-size: 0.9rem;
+        }
+        
+        /* Better spacing for buttons */
+        .btn-group {
+            flex-wrap: wrap;
+        }
+        
+        /* Hide some columns on very small screens */
+        @media (max-width: 576px) {
+            .col-check[style*="width: 120px"] {
+                display: none;
+            }
+        }
+    }
+</style>
+
+<div class="row">
+    <div class="col-12 col-md-6 mb-4 mb-md-0">
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                Income Categories
+            </div>
+
+            <!-- Column Headers -->
+            <div class="list-group-item bg-light border-bottom py-2">
+                <div class="d-flex align-items-center">
+                    <div class="col-name ps-2 col-header text-start">Category</div>
+                    <div class="col-check col-header">Persistent</div>
+                    <div class="col-action"></div>
+                </div>
+            </div>
+
+            <ul class="list-group list-group-flush">
+                {% for category in income_categories %}
+                <li class="list-group-item parent-category-row" data-category-id="{{ category.id }}"
+                    data-category-type="INCOME">
+                    <div class="d-flex align-items-center">
+                        <div class="col-name">
+                            <strong>{{ category.name }}</strong>
+                        </div>
+                        <div class="col-check">
+                            {% if category.is_persistent %}
+                            <span class="check-mark">✓</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-action">
+                            <a href="{% url 'edit_category' category.id %}" class="text-primary" title="Edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                    class="bi bi-pencil" viewBox="0 0 16 16">
+                                    <path
+                                        d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    {% if category.children.all %}
+                    <ul class="list-group list-group-flush mt-2">
+                        {% for child in category.children.all %}
+                        <li class="list-group-item ps-4 border-0 py-2 bg-light sub-category-row" draggable="true"
+                            data-category-id="{{ child.id }}" data-parent-id="{{ category.id }}">
+                            <div class="d-flex align-items-center">
+                                <div class="col-name">
+                                    <small class="text-muted">↳ {{ child.name }}</small>
+                                    {% if child.notes.exists %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ child.id }}" title="View/Add Notes ({{ child.notes.count }})" style="text-decoration: none; vertical-align: middle;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16" style="color: #0d6efd;">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                        <span class="badge bg-primary rounded-pill" style="font-size: 0.6rem; margin-left: 2px;">{{ child.notes.count }}</span>
+                                    </button>
+                                    {% else %}
+                                    <button type="button" class="btn btn-sm btn-link p-0 ms-2 category-notes-btn" data-category-id="{{ child.id }}" title="Add Note" style="text-decoration: none; vertical-align: middle; opacity: 0.5;">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="bi bi-sticky" viewBox="0 0 16 16">
+                                            <path d="M2.5 1A1.5 1.5 0 0 0 1 2.5v11A1.5 1.5 0 0 0 2.5 15h6.086a1.5 1.5 0 0 0 1.06-.44l4.915-4.914A1.5 1.5 0 0 0 15 8.586V2.5A1.5 1.5 0 0 0 13.5 1h-11zM2 2.5a.5.5 0 0 1 .5-.5h11a.5.5 0 0 1 .5.5v6.086a.5.5 0 0 1-.146.353l-4.915 4.915a.5.5 0 0 1-.353.146H2.5a.5.5 0 0 1-.5-.5v-11z"/>
+                                        </svg>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                <div class="col-check">
+                                    {% if child.is_persistent %}
+                                    <span class="check-mark">✓</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-action">
+                                    <a href="{% url 'edit_category' child.id %}" class="text-primary" title="Edit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                            fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                                            <path
+                                                d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </li>
+                {% empty %}
+                <li class="list-group-item text-muted">No income categories found.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-12 col-md-6 mb-4 mb-md-0">
+        <div class="card mb-4">
+            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                <span>Expense Categories</span>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-sm btn-outline-light" id="expandAllExpenses">
+                        Expand All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light" id="collapseAllExpenses">
+                        Collapse All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Column Headers -->
+            <div class="list-group-item bg-light border-bottom py-2">
+                <div class="d-flex align-items-center">
+                    <div class="col-name ps-2 col-header text-start">Category</div>
+                    <div class="col-check col-header">Persistent</div>
+                    <div class="col-check col-header" style="width: 120px;">Track Manually</div>
+                    <div class="col-action"></div>
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                {% for category in expense_categories %}
+                <div class="list-group-item border-start-0 border-end-0 parent-category-row"
+                    data-category-id="{{ category.id }}" data-category-type="EXPENSE">
+                    <div class="d-flex align-items-center mb-0">
+                        <div class="col-name d-flex align-items-center">
+                            <div style="cursor: pointer;" data-bs-toggle="collapse"
+                                data-bs-target="#expense-{{ category.id }}" aria-expanded="true" class="me-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor"
+                                    class="bi bi-chevron-down" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd"
+                                        d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
+                                </svg>
+                            </div>
+                            <strong>{{ category.name }}</strong>
+                        </div>
+                        <div class="col-check">
+                            {% if category.is_persistent %}
+                            <span class="check-mark">✓</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-check" style="width: 120px;">
+                            {% if category.payment_type == 'MANUAL' %}
+                            <span class="check-mark text-warning">✓</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-action">
+                            <a href="{% url 'edit_category' category.id %}" class="text-primary" title="Edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                    class="bi bi-pencil" viewBox="0 0 16 16">
+                                    <path
+                                        d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    {% if category.children.all %}
+                    <div class="collapse" id="expense-{{ category.id }}">
+                        <ul class="list-group list-group-flush mt-2">
+                            {% for child in category.children.all %}
+                            <li class="list-group-item ps-4 border-0 py-2 bg-light sub-category-row" draggable="true"
+                                data-category-id="{{ child.id }}" data-parent-id="{{ category.id }}">
+                                <div class="d-flex align-items-center">
+                                    <div class="col-name">
+                                        <small class="text-muted">↳ {{ child.name }}</small>
+                                    </div>
+                                    <div class="col-check">
+                                        {% if child.is_persistent %}
+                                        <span class="check-mark">✓</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-check" style="width: 120px;">
+                                        {% if child.payment_type == 'MANUAL' %}
+                                        <span class="check-mark text-warning">✓</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-action">
+                                        <a href="{% url 'edit_category' child.id %}" class="text-primary" title="Edit">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                                fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-muted p-3">No expense categories found.</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Savings Categories -->
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <span>Savings & Investments</span>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-sm btn-outline-light" id="expandAllSavings">
+                        Expand All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light" id="collapseAllSavings">
+                        Collapse All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Column Headers -->
+            <div class="list-group-item bg-light border-bottom py-2">
+                <div class="d-flex align-items-center">
+                    <div class="col-name ps-2 col-header text-start">Category</div>
+                    <div class="col-check col-header">Persistent</div>
+                    <div class="col-check col-header" style="width: 120px;">Track Manually</div>
+                    <div class="col-action"></div>
+                </div>
+            </div>
+
+            <div class="card-body p-0">
+                {% for category in savings_categories %}
+                <div class="list-group-item border-start-0 border-end-0 parent-category-row"
+                    data-category-id="{{ category.id }}" data-category-type="SAVINGS">
+                    <div class="d-flex align-items-center mb-0">
+                        <div class="col-name d-flex align-items-center">
+                            <div style="cursor: pointer;" data-bs-toggle="collapse"
+                                data-bs-target="#savings-{{ category.id }}" aria-expanded="true" class="me-2">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor"
+                                    class="bi bi-chevron-down" viewBox="0 0 16 16">
+                                    <path fill-rule="evenodd"
+                                        d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
+                                </svg>
+                            </div>
+                            <strong>{{ category.name }}</strong>
+                        </div>
+                        <div class="col-check">
+                            {% if category.is_persistent %}
+                            <span class="check-mark">✓</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-check" style="width: 120px;">
+                            {% if category.payment_type == 'MANUAL' %}
+                            <span class="check-mark text-warning">✓</span>
+                            {% endif %}
+                        </div>
+                        <div class="col-action">
+                            <a href="{% url 'edit_category' category.id %}" class="text-primary" title="Edit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                    class="bi bi-pencil" viewBox="0 0 16 16">
+                                    <path
+                                        d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                </svg>
+                            </a>
+                        </div>
+                    </div>
+                    {% if category.children.all %}
+                    <div class="collapse" id="savings-{{ category.id }}">
+                        <ul class="list-group list-group-flush mt-2">
+                            {% for child in category.children.all %}
+                            <li class="list-group-item ps-4 border-0 py-2 bg-light sub-category-row" draggable="true"
+                                data-category-id="{{ child.id }}" data-parent-id="{{ category.id }}">
+                                <div class="d-flex align-items-center">
+                                    <div class="col-name">
+                                        <small class="text-muted">↳ {{ child.name }}</small>
+                                    </div>
+                                    <div class="col-check">
+                                        {% if child.is_persistent %}
+                                        <span class="check-mark">✓</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-check" style="width: 120px;">
+                                        {% if child.payment_type == 'MANUAL' %}
+                                        <span class="check-mark text-warning">✓</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-action">
+                                        <a href="{% url 'edit_category' child.id %}" class="text-primary" title="Edit">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                                fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                                                <path
+                                                    d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                            </svg>
+                                        </a>
+                                    </div>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-muted p-3">No savings categories found.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .parent-category-row.drag-over {
+        background-color: #e3f2fd;
+        border: 2px dashed #2196F3;
+    }
+
+    .sub-category-row {
+        cursor: move;
+    }
+
+    .sub-category-row.dragging {
+        opacity: 0.5;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        let draggedElement = null;
+
+        // Make sub-categories draggable
+        document.querySelectorAll('.sub-category-row').forEach(row => {
+            row.addEventListener('dragstart', function (e) {
+                draggedElement = this;
+                this.classList.add('dragging');
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.innerHTML);
+            });
+
+            row.addEventListener('dragend', function (e) {
+                this.classList.remove('dragging');
+            });
+        });
+
+        // Make parent categories drop zones
+        document.querySelectorAll('.parent-category-row').forEach(row => {
+            row.addEventListener('dragover', function (e) {
+                if (e.preventDefault) {
+                    e.preventDefault();
+                }
+                e.dataTransfer.dropEffect = 'move';
+                this.classList.add('drag-over');
+                return false;
+            });
+
+            row.addEventListener('dragleave', function (e) {
+                this.classList.remove('drag-over');
+            });
+
+            row.addEventListener('drop', function (e) {
+                if (e.stopPropagation) {
+                    e.stopPropagation();
+                }
+                e.preventDefault();
+
+                this.classList.remove('drag-over');
+
+                if (draggedElement) {
+                    const subCategoryId = draggedElement.dataset.categoryId;
+                    const oldParentId = draggedElement.dataset.parentId;
+                    const newParentId = this.dataset.categoryId;
+
+                    // Don't do anything if dropped on same parent
+                    if (oldParentId === newParentId) {
+                        return false;
+                    }
+
+                    // Send API request to update parent
+                    fetch(`/api/categories/${subCategoryId}/move/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                            'X-CSRFToken': getCookie('csrftoken')
+                        },
+                        body: `parent_id=${newParentId}`
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // Reload page to show updated structure
+                                location.reload();
+                            } else {
+                                alert('Error: ' + data.error);
+                            }
+                        })
+                        .catch(error => {
+                            alert('Error moving category: ' + error);
+                        });
+                }
+
+                return false;
+            });
+        });
+
+        // ===== LocalStorage: Remember Expanded State =====
+        const STORAGE_KEY = 'expenseCategoriesExpandedState';
+
+        // Save expanded state to localStorage
+        function saveExpandedState() {
+            const expandedIds = [];
+            document.querySelectorAll('.collapse').forEach(collapse => {
+                if (collapse.classList.contains('show')) {
+                    expandedIds.push(collapse.id);
+                }
+            });
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(expandedIds));
+        }
+
+        // Restore expanded state from localStorage on page load
+        function restoreExpandedState() {
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                try {
+                    const expandedIds = JSON.parse(savedState);
+                    expandedIds.forEach(id => {
+                        const collapseElement = document.getElementById(id);
+                        if (collapseElement && !collapseElement.classList.contains('show')) {
+                            collapseElement.classList.add('show');
+                        }
+                    });
+                } catch (e) {
+                    console.error('Error restoring expanded state:', e);
+                }
+            }
+        }
+
+        // Listen for collapse/expand events and save state
+        document.querySelectorAll('.collapse').forEach(collapse => {
+            collapse.addEventListener('shown.bs.collapse', saveExpandedState);
+            collapse.addEventListener('hidden.bs.collapse', saveExpandedState);
+        });
+
+        // Restore state on page load
+        restoreExpandedState();
+
+        // ===== Expand/Collapse All Functionality =====
+        const expandAllExpensesBtn = document.getElementById('expandAllExpenses');
+        const collapseAllExpensesBtn = document.getElementById('collapseAllExpenses');
+        const expandAllSavingsBtn = document.getElementById('expandAllSavings');
+        const collapseAllSavingsBtn = document.getElementById('collapseAllSavings');
+
+        if (expandAllExpensesBtn) {
+            expandAllExpensesBtn.addEventListener('click', function () {
+                document.querySelectorAll('[id^="expense-"]').forEach(collapse => {
+                    if (!collapse.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
+                        bsCollapse.show();
+                    }
+                });
+            });
+        }
+
+        if (collapseAllExpensesBtn) {
+            collapseAllExpensesBtn.addEventListener('click', function () {
+                document.querySelectorAll('[id^="expense-"].show').forEach(collapse => {
+                    const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
+                    bsCollapse.hide();
+                });
+            });
+        }
+
+        if (expandAllSavingsBtn) {
+            expandAllSavingsBtn.addEventListener('click', function () {
+                document.querySelectorAll('[id^="savings-"]').forEach(collapse => {
+                    if (!collapse.classList.contains('show')) {
+                        const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
+                        bsCollapse.show();
+                    }
+                });
+            });
+        }
+
+        if (collapseAllSavingsBtn) {
+            collapseAllSavingsBtn.addEventListener('click', function () {
+                document.querySelectorAll('[id^="savings-"].show').forEach(collapse => {
+                    const bsCollapse = new bootstrap.Collapse(collapse, { toggle: false });
+                    bsCollapse.hide();
+                });
+            });
+        }
+    });
+</script>
+
+{% endblock %}

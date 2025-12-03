@@ -1,0 +1,79 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Create New Template</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'admin_templates' %}" class="btn btn-sm btn-outline-secondary">Back to Templates</a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Template Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Template Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" name="name" required placeholder="e.g., Minimal Budget, Comprehensive Starter">
+                        <small class="form-text text-muted">A unique name for this template</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Describe what categories this template includes and who it's best for..."></textarea>
+                        <small class="form-text text-muted">Optional description to help identify this template</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_default" name="is_default">
+                            <label class="form-check-label" for="is_default">
+                                Set as Default Template
+                            </label>
+                            <small class="form-text text-muted d-block">If checked, this template will be used automatically for new households</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="is_active" name="is_active" checked>
+                            <label class="form-check-label" for="is_active">
+                                Active
+                            </label>
+                            <small class="form-text text-muted d-block">Only active templates can be used</small>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Create Template</button>
+                        <a href="{% url 'admin_templates' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Next Steps</h5>
+            </div>
+            <div class="card-body">
+                <p>After creating the template, you'll be able to:</p>
+                <ol>
+                    <li>Add categories to the template</li>
+                    <li>Configure category properties (type, persistence, payment type, essential status)</li>
+                    <li>Set up parent-child relationships</li>
+                    <li>Edit categories using Django Admin for full control</li>
+                </ol>
+                <p class="mb-0"><strong>Tip:</strong> You can also copy categories from an existing template in Django Admin.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

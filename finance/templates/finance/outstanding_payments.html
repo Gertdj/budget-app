@@ -1,0 +1,140 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Outstanding Payments - {{ month_name }} {{ year }}</h1>
+</div>
+
+{% if grouped_budgets %}
+<div class="card">
+    <div class="card-body">
+        {% for group in grouped_budgets %}
+        <div class="mb-4">
+            <h5 class="text-primary mb-3">{{ group.parent.name }}</h5>
+            <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th>Category</th>
+                        <th class="text-end">Amount</th>
+                        <th class="text-center" style="width: 80px;">Paid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for budget in group.items %}
+                    <tr>
+                        <td>
+                            {% if budget.category.parent %}
+                            <small class="text-muted">↳ {{ budget.category.name }}</small>
+                            {% else %}
+                            {{ budget.category.name }}
+                            {% endif %}
+                        </td>
+                        <td class="text-end">R {{ budget.amount|floatformat:2 }}</td>
+                        <td class="text-center">
+                            {% if budget.category.parent %}
+                            <input type="checkbox" class="form-check-input payment-checkbox"
+                                data-budget-id="{{ budget.id }}" {% if budget.is_paid %}checked{% endif %}>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-light">
+                        <th>Subtotal</th>
+                        <th class="text-end">R {{ group.subtotal|floatformat:2 }}</th>
+                        <th></th>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="border-top pt-3">
+            <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <tfoot>
+                    <tr class="table-secondary">
+                        <th>Total Outstanding</th>
+                        <th class="text-end">R {{ total|floatformat:2 }}</th>
+                        <th style="width: 80px;"></th>
+                    </tr>
+                </tfoot>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="alert alert-success" role="alert">
+    ✓ All payments completed for {{ month_name }} {{ year }}!
+</div>
+{% endif %}
+
+<div class="mt-3">
+    <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const checkboxes = document.querySelectorAll('.payment-checkbox');
+
+        checkboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function () {
+                const budgetId = this.dataset.budgetId;
+                const row = this.closest('tr');
+
+                // Use API endpoint to toggle payment status
+                fetch(`/api/budgets/${budgetId}/toggle_payment/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: `budget_id=${budgetId}`
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.is_paid) {
+                                row.style.backgroundColor = '#d4edda';
+                                setTimeout(() => {
+                                    row.remove();
+                                    // Reload if no more items
+                                    if (document.querySelectorAll('.payment-checkbox').length === 0) {
+                                        location.reload();
+                                    }
+                                }, 500);
+                            }
+                        } else {
+                            alert('Error: ' + (data.error || 'Unknown error'));
+                            this.checked = !this.checked;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('Error toggling payment');
+                        this.checked = !this.checked;
+                    });
+            });
+        });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    });
+</script>
+{% endblock %}

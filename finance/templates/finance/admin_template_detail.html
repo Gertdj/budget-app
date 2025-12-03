@@ -1,0 +1,154 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">{{ template.name }}{% if template.is_default %} <span class="badge bg-success">Default</span>{% endif %}</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <a href="{% url 'admin_templates' %}" class="btn btn-sm btn-outline-secondary">Back to Templates</a>
+        <a href="/admin/finance/budgettemplate/{{ template.id }}/change/" target="_blank" class="btn btn-sm btn-primary ms-2">Edit in Django Admin</a>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h5>Description</h5>
+                <p class="mb-0">{{ template.description|default:"No description provided." }}</p>
+                <hr>
+                <div class="row">
+                    <div class="col-md-3">
+                        <strong>Status:</strong>
+                        {% if template.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Categories:</strong> {{ template.get_category_count }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Created By:</strong> {{ template.created_by.username|default:"System" }}
+                    </div>
+                    <div class="col-md-3">
+                        <strong>Created:</strong> {{ template.created_at|date:"Y-m-d H:i" }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Template Categories</h5>
+            </div>
+            <div class="card-body">
+                {% if categories_by_type.INCOME or categories_by_type.EXPENSE or categories_by_type.SAVINGS %}
+                <!-- Income Categories -->
+                {% if categories_by_type.INCOME %}
+                <h6 class="text-success mt-3 mb-2">Income Categories</h6>
+                <ul class="list-group mb-3">
+                    {% for group in categories_by_type.INCOME %}
+                    <li class="list-group-item">
+                        <strong>{{ group.category.name }}</strong>
+                        <span class="badge bg-secondary ms-2">{{ group.category.get_type_display }}</span>
+                        {% if group.category.is_persistent %}<span class="badge bg-info ms-1">Persistent</span>{% endif %}
+                        {% if group.category.is_essential %}<span class="badge bg-success ms-1">Essential</span>{% else %}<span class="badge bg-warning ms-1">Non-Essential</span>{% endif %}
+                        <span class="badge bg-primary ms-1">{{ group.category.get_payment_type_display }}</span>
+                        {% if group.children %}
+                        <ul class="list-group list-group-flush mt-2">
+                            {% for child in group.children %}
+                            <li class="list-group-item ps-4">
+                                ↳ {{ child.name }}
+                                <span class="badge bg-secondary ms-2">{{ child.get_type_display }}</span>
+                                {% if child.is_persistent %}<span class="badge bg-info ms-1">Persistent</span>{% endif %}
+                                {% if child.is_essential %}<span class="badge bg-success ms-1">Essential</span>{% else %}<span class="badge bg-warning ms-1">Non-Essential</span>{% endif %}
+                                <span class="badge bg-primary ms-1">{{ child.get_payment_type_display }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                <!-- Expense Categories -->
+                {% if categories_by_type.EXPENSE %}
+                <h6 class="text-danger mt-3 mb-2">Expense Categories</h6>
+                <ul class="list-group mb-3">
+                    {% for group in categories_by_type.EXPENSE %}
+                    <li class="list-group-item">
+                        <strong>{{ group.category.name }}</strong>
+                        <span class="badge bg-secondary ms-2">{{ group.category.get_type_display }}</span>
+                        {% if group.category.is_persistent %}<span class="badge bg-info ms-1">Persistent</span>{% endif %}
+                        {% if group.category.is_essential %}<span class="badge bg-success ms-1">Essential</span>{% else %}<span class="badge bg-warning ms-1">Non-Essential</span>{% endif %}
+                        <span class="badge bg-primary ms-1">{{ group.category.get_payment_type_display }}</span>
+                        {% if group.children %}
+                        <ul class="list-group list-group-flush mt-2">
+                            {% for child in group.children %}
+                            <li class="list-group-item ps-4">
+                                ↳ {{ child.name }}
+                                <span class="badge bg-secondary ms-2">{{ child.get_type_display }}</span>
+                                {% if child.is_persistent %}<span class="badge bg-info ms-1">Persistent</span>{% endif %}
+                                {% if child.is_essential %}<span class="badge bg-success ms-1">Essential</span>{% else %}<span class="badge bg-warning ms-1">Non-Essential</span>{% endif %}
+                                <span class="badge bg-primary ms-1">{{ child.get_payment_type_display }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                
+                <!-- Savings Categories -->
+                {% if categories_by_type.SAVINGS %}
+                <h6 class="text-info mt-3 mb-2">Savings & Investments Categories</h6>
+                <ul class="list-group mb-3">
+                    {% for group in categories_by_type.SAVINGS %}
+                    <li class="list-group-item">
+                        <strong>{{ group.category.name }}</strong>
+                        <span class="badge bg-secondary ms-2">{{ group.category.get_type_display }}</span>
+                        {% if group.category.is_persistent %}<span class="badge bg-info ms-1">Persistent</span>{% endif %}
+                        {% if group.category.is_essential %}<span class="badge bg-success ms-1">Essential</span>{% else %}<span class="badge bg-warning ms-1">Non-Essential</span>{% endif %}
+                        <span class="badge bg-primary ms-1">{{ group.category.get_payment_type_display }}</span>
+                        {% if group.children %}
+                        <ul class="list-group list-group-flush mt-2">
+                            {% for child in group.children %}
+                            <li class="list-group-item ps-4">
+                                ↳ {{ child.name }}
+                                <span class="badge bg-secondary ms-2">{{ child.get_type_display }}</span>
+                                {% if child.is_persistent %}<span class="badge bg-info ms-1">Persistent</span>{% endif %}
+                                {% if child.is_essential %}<span class="badge bg-success ms-1">Essential</span>{% else %}<span class="badge bg-warning ms-1">Non-Essential</span>{% endif %}
+                                <span class="badge bg-primary ms-1">{{ child.get_payment_type_display }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                {% else %}
+                <p class="text-muted">No categories in this template yet. <a href="/admin/finance/budgettemplate/{{ template.id }}/change/" target="_blank">Add categories in Django Admin</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-12">
+        <div class="alert alert-info">
+            <strong>Note:</strong> To add, edit, or delete categories in this template, use the <strong>"Edit in Django Admin"</strong> button above. 
+            The Django Admin interface provides full control over template categories, including inline editing.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
