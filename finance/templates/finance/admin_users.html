@@ -18,7 +18,6 @@
             <table class="table table-striped">
                 <thead>
                     <tr>
-                        <th>Username</th>
                         <th>Email</th>
                         <th>Date Joined</th>
                         <th>Is Superuser</th>
@@ -29,8 +28,7 @@
                 <tbody>
                     {% for item in users_with_households %}
                     <tr>
-                        <td><strong>{{ item.user.username }}</strong></td>
-                        <td>{{ item.user.email|default:"—" }}</td>
+                        <td><strong>{{ item.user.email }}</strong></td>
                         <td>{{ item.user.date_joined|date:"Y-m-d" }}</td>
                         <td>
                             {% if item.user.is_superuser %}

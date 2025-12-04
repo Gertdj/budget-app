@@ -56,6 +56,9 @@ INSTALLED_APPS = [
     'finance',
 ]
 
+# Custom User Model
+AUTH_USER_MODEL = 'finance.User'
+
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',  # Add WhiteNoise for static files

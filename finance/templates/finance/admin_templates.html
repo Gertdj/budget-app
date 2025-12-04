@@ -57,7 +57,7 @@
                                     <span class="badge bg-secondary">Inactive</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ template.created_by.username|default:"System" }}</td>
+                                <td>{{ template.created_by.email|default:"System" }}</td>
                                 <td>{{ template.created_at|date:"Y-m-d H:i" }}</td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">

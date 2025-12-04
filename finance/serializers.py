@@ -2,11 +2,13 @@
 Serializers for Finance Flow API
 """
 from rest_framework import serializers
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from .models import (
     Household, Category, Budget, Transaction, 
     CategoryNote, BudgetTemplate, TemplateCategory
 )
+
+User = get_user_model()
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -93,9 +95,9 @@ class TransactionSerializer(serializers.ModelSerializer):
 class CategoryNoteSerializer(serializers.ModelSerializer):
     """Serializer for CategoryNote model"""
     category_name = serializers.CharField(source='category.name', read_only=True)
-    author_username = serializers.CharField(source='author.username', read_only=True, allow_null=True)
+    author_username = serializers.CharField(source='author.email', read_only=True, allow_null=True)
     # For backward compatibility with existing JS which expects `note.author` as a display name
-    author = serializers.CharField(source='author.username', read_only=True, allow_null=True)
+    author = serializers.CharField(source='author.email', read_only=True, allow_null=True)
     
     class Meta:
         model = CategoryNote
@@ -121,7 +123,7 @@ class TemplateCategorySerializer(serializers.ModelSerializer):
 
 class BudgetTemplateSerializer(serializers.ModelSerializer):
     """Serializer for BudgetTemplate model"""
-    created_by_username = serializers.CharField(source='created_by.username', read_only=True, allow_null=True)
+    created_by_username = serializers.CharField(source='created_by.email', read_only=True, allow_null=True)
     category_count = serializers.IntegerField(source='categories.count', read_only=True)
     categories = TemplateCategorySerializer(many=True, read_only=True)
     

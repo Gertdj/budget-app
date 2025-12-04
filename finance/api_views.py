@@ -33,7 +33,7 @@ def get_user_household(user):
         return None
     household = user.households.first()
     if not household:
-        household = Household.objects.create(name=f"{user.username}'s Household")
+        household = Household.objects.create(name=f"{user.email}'s Household")
         household.members.add(user)
     return household
 

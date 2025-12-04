@@ -6,6 +6,7 @@ urlpatterns = [
     path('register/', views.register_view, name='register'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path('set-password/<str:username>/', views.set_password, name='set_password'),
     
     # Main app (require login)
     path('', views.dashboard, name='dashboard'),

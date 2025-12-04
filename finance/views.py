@@ -5,10 +5,11 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.models import User
 from django.contrib import messages
 from decimal import Decimal
 from .models import Transaction, Category, Budget, Household, CategoryNote, BudgetTemplate, TemplateCategory
-from .forms import TransactionForm, CategoryForm, BulkCategoryForm
+from .forms import TransactionForm, CategoryForm, BulkCategoryForm, CustomUserCreationForm
 from .utils import open_budget_month
 from .templates import create_base_starter_template, apply_barebones_template
 from .excel_reports import export_yearly_budget, export_monthly_detail, export_category_summary, export_transactions, export_category_setup
@@ -22,7 +23,7 @@ def get_user_household(user):
     household = user.households.first()
     if not household:
         # Create a default household if user doesn't have one
-        household = Household.objects.create(name=f"{user.username}'s Household")
+        household = Household.objects.create(name=f"{user.email}'s Household")
         household.members.add(user)
     return household
 
@@ -350,7 +351,7 @@ def clear_all_categories(request):
 
 @login_required
 def edit_household(request):
-    """Edit household name"""
+    """Edit household name and manage members"""
     household = get_user_household(request.user)
     if not household:
         return redirect('register')
@@ -361,18 +362,74 @@ def edit_household(request):
         return redirect('dashboard')
     
     error_message = None
+    success_message = None
     
     if request.method == 'POST':
-        new_name = request.POST.get('name', '').strip()
-        if not new_name:
-            error_message = 'Household name cannot be empty.'
-        else:
-            household.name = new_name
-            household.save()
-            messages.success(request, f'Household name updated to "{household.name}".')
-            return redirect('dashboard')
+        action = request.POST.get('action')
+        
+        if action == 'update_name':
+            new_name = request.POST.get('name', '').strip()
+            if not new_name:
+                error_message = 'Household name cannot be empty.'
+            else:
+                household.name = new_name
+                household.save()
+                success_message = f'Household name updated to "{household.name}".'
+        
+        elif action == 'add_member':
+            email = request.POST.get('email', '').strip()
+            if not email:
+                error_message = 'Please enter an email address.'
+            else:
+                # Validate email format
+                from django.core.validators import validate_email
+                from django.core.exceptions import ValidationError
+                try:
+                    validate_email(email)
+                except ValidationError:
+                    error_message = 'Please enter a valid email address.'
+                else:
+                    # Check if email already exists
+                    if User.objects.filter(email=email).exists():
+                        error_message = f'Email "{email}" already exists. Please use a different email address.'
+                    else:
+                        # Create new user without password (they'll set it on first login)
+                        new_user = User.objects.create(
+                            email=email,
+                            username=None  # Username is optional now
+                        )
+                        # Set unusable password so they can't login until they set one
+                        new_user.set_unusable_password()
+                        new_user.save()
+                        
+                        # Add user to household
+                        household.members.add(new_user)
+                        success_message = f'User "{email}" has been added to the household. They will be prompted to set a password on first login.'
+        
+        elif action == 'remove_member':
+            user_id = request.POST.get('user_id')
+            if user_id:
+                try:
+                    user_to_remove = User.objects.get(id=user_id)
+                    if user_to_remove == request.user:
+                        error_message = 'You cannot remove yourself from the household.'
+                    elif user_to_remove not in household.members.all():
+                        error_message = 'This user is not a member of the household.'
+                    else:
+                        household.members.remove(user_to_remove)
+                        success_message = f'User "{user_to_remove.email}" has been removed from the household.'
+                except User.DoesNotExist:
+                    error_message = 'User not found.'
     
-    return render(request, 'finance/edit_household.html', {'household': household, 'error_message': error_message})
+    # Get all members
+    members = household.members.all().order_by('email')
+    
+    return render(request, 'finance/edit_household.html', {
+        'household': household,
+        'members': members,
+        'error_message': error_message,
+        'success_message': success_message
+    })
 
 @login_required
 def reset_budget(request):
@@ -772,7 +829,7 @@ def register_view(request):
         return redirect('dashboard')
     
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = CustomUserCreationForm(request.POST)
         apply_template = request.POST.get('apply_template', 'false') == 'true'
         household_name = request.POST.get('household_name', '').strip()
         
@@ -795,15 +852,15 @@ def register_view(request):
                 template_message = " You can start by creating your own categories."
             
             # Authenticate and login the user
-            username = form.cleaned_data.get('username')
+            email = form.cleaned_data.get('email')
             password = form.cleaned_data.get('password1')
-            user = authenticate(username=username, password=password)
+            user = authenticate(request, username=email, password=password)
             if user:
                 login(request, user)
-                messages.success(request, f'Welcome, {username}! Your account has been created.{template_message}')
+                messages.success(request, f'Welcome! Your account has been created.{template_message}')
                 return redirect('dashboard')
     else:
-        form = UserCreationForm()
+        form = CustomUserCreationForm()
     
     return render(request, 'finance/register.html', {'form': form})
 
@@ -813,9 +870,29 @@ def login_view(request):
         return redirect('dashboard')
     
     from django.contrib.auth.forms import AuthenticationForm
+    from django.contrib.auth import authenticate
     
     if request.method == 'POST':
+        email = request.POST.get('username', '').strip()  # Django's AuthenticationForm uses 'username' field name
+        password = request.POST.get('password', '').strip()
+        
+        # Check if user exists and has no password set
+        try:
+            user = User.objects.get(email=email)
+            if not user.has_usable_password():
+                # User exists but has no password - redirect to set password page
+                return redirect('set_password', username=email)
+        except User.DoesNotExist:
+            pass  # Let AuthenticationForm handle the error
+        
+        # Use standard authentication form for users with passwords
+        # We need to customize it to use email
+        from django.contrib.auth.forms import AuthenticationForm
         form = AuthenticationForm(request, data=request.POST)
+        # Override the username field to use email
+        form.fields['username'].label = 'Email Address'
+        form.fields['username'].widget.attrs.update({'type': 'email', 'placeholder': 'Enter your email'})
+        
         if form.is_valid():
             user = form.get_user()
             login(request, user)
@@ -824,7 +901,10 @@ def login_view(request):
             return redirect(next_url)
         # Form will contain error messages for invalid credentials
     else:
+        from django.contrib.auth.forms import AuthenticationForm
         form = AuthenticationForm()
+        form.fields['username'].label = 'Email Address'
+        form.fields['username'].widget.attrs.update({'type': 'email', 'placeholder': 'Enter your email'})
     
     return render(request, 'finance/login.html', {'form': form})
 
@@ -835,6 +915,56 @@ def logout_view(request):
     messages.info(request, 'You have been logged out.')
     return redirect('login')
 
+def set_password(request, username):
+    """Set password for new users who were added to a household"""
+    # Get the user by email (username parameter is actually email now)
+    try:
+        user = User.objects.get(email=username)
+    except User.DoesNotExist:
+        messages.error(request, 'User not found.')
+        return redirect('login')
+    
+    # Check if user already has a password
+    if user.has_usable_password():
+        # If user is logged in and it's them, allow password change
+        if request.user.is_authenticated and request.user == user:
+            pass  # Allow them to change password
+        else:
+            messages.error(request, 'This user already has a password set. Please log in normally.')
+            return redirect('login')
+    
+    error_message = None
+    
+    if request.method == 'POST':
+        password1 = request.POST.get('password1', '').strip()
+        password2 = request.POST.get('password2', '').strip()
+        
+        if not password1:
+            error_message = 'Please enter a password.'
+        elif len(password1) < 8:
+            error_message = 'Password must be at least 8 characters long.'
+        elif password1 != password2:
+            error_message = 'Passwords do not match.'
+        else:
+            # Set the password
+            user.set_password(password1)
+            user.save()
+            
+            # Authenticate and login the user (use email as username)
+            authenticated_user = authenticate(request, username=user.email, password=password1)
+            if authenticated_user:
+                login(request, authenticated_user)
+                messages.success(request, 'Password set successfully! You are now logged in.')
+                return redirect('dashboard')
+            else:
+                error_message = 'Error setting password. Please try again.'
+    
+    return render(request, 'finance/set_password.html', {
+        'user': user,
+        'error_message': error_message,
+        'is_new_user': not user.has_usable_password()
+    })
+
 # Admin Views (Superuser Only)
 
 @login_required
@@ -844,7 +974,7 @@ def admin_dashboard(request):
         messages.error(request, 'Access denied. Admin access required.')
         return redirect('dashboard')
     
-    from django.contrib.auth.models import User
+    from .models import User
     from django.db.models import Count, Sum
     
     total_users = User.objects.count()
@@ -878,7 +1008,7 @@ def admin_users(request):
         messages.error(request, 'Access denied. Admin access required.')
         return redirect('dashboard')
     
-    from django.contrib.auth.models import User
+    from .models import User
     
     users = User.objects.all().order_by('-date_joined')
     
@@ -953,7 +1083,7 @@ def category_notes(request, category_id):
             'note': {
                 'id': note.id,
                 'note': note.note,
-                'author': note.author.username,
+                'author': note.author.email,
                 'created_at': note.created_at.strftime('%Y-%m-%d %H:%M'),
             }
         })
@@ -963,7 +1093,7 @@ def category_notes(request, category_id):
     notes_data = [{
         'id': note.id,
         'note': note.note,
-        'author': note.author.username if note.author else 'Unknown',
+        'author': note.author.email if note.author else 'Unknown',
         'created_at': note.created_at.strftime('%Y-%m-%d %H:%M'),
     } for note in notes]
     

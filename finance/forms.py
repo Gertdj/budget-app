@@ -1,5 +1,6 @@
 from django import forms
-from .models import Transaction, Category, Budget
+from django.contrib.auth.forms import UserCreationForm
+from .models import Transaction, Category, Budget, User
 
 class TransactionForm(forms.ModelForm):
     class Meta:
@@ -83,3 +84,31 @@ class BulkCategoryForm(forms.Form):
         help_text="Enter one sub-category per line.",
         label="Sub-categories"
     )
+
+class CustomUserCreationForm(UserCreationForm):
+    """Custom user creation form that uses email as username"""
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'autocomplete': 'email'}),
+        label="Email Address",
+        help_text="Your email address will be used as your username for login."
+    )
+    
+    class Meta:
+        model = User
+        fields = ("email", "password1", "password2")
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Remove username field
+        if 'username' in self.fields:
+            del self.fields['username']
+        # Make email required and set as username field
+        self.fields['email'].required = True
+    
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data["email"]
+        if commit:
+            user.save()
+        return user

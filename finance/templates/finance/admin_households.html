@@ -36,7 +36,7 @@
                             <br>
                             <small class="text-muted">
                                 {% for member in household.members.all|slice:":3" %}
-                                    {{ member.username }}{% if not forloop.last %}, {% endif %}
+                                    {{ member.email }}{% if not forloop.last %}, {% endif %}
                                 {% endfor %}
                                 {% if household.member_count > 3 %}...{% endif %}
                             </small>

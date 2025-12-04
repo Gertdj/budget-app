@@ -1,5 +1,35 @@
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
+from django.core.validators import EmailValidator
+
+class User(AbstractUser):
+    """Custom User model with email as username"""
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text='Optional. Not used for login.'
+    )
+    email = models.EmailField(
+        unique=True,
+        validators=[EmailValidator()],
+        help_text='Required. Used as username for login.'
+    )
+    
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = []  # Email is already required as USERNAME_FIELD
+    
+    class Meta:
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+        # Remove username from unique_together since it can be null
+        constraints = [
+            models.UniqueConstraint(fields=['email'], name='unique_email')
+        ]
+    
+    def __str__(self):
+        return self.email
 
 class Household(models.Model):
     """Represents a household/budget group that can have multiple members"""
@@ -86,7 +116,7 @@ class CategoryNote(models.Model):
         verbose_name_plural = 'Category Notes'
     
     def __str__(self):
-        return f"Note for {self.category.name} by {self.author.username if self.author else 'Unknown'}"
+        return f"Note for {self.category.name} by {self.author.email if self.author else 'Unknown'}"
 
 class BudgetTemplate(models.Model):
     """Template for creating default category structures for new households"""

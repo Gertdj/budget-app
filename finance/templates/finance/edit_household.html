@@ -2,10 +2,10 @@
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-12 col-md-6">
+    <div class="col-12 col-md-8">
         <div class="card mt-5">
             <div class="card-body">
-                <h2 class="card-title text-center mb-4">Edit Household Name</h2>
+                <h2 class="card-title text-center mb-4">Manage Household</h2>
                 
                 {% if error_message %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -14,20 +14,82 @@
                 </div>
                 {% endif %}
                 
-                <form method="post">
-                    {% csrf_token %}
+                {% if success_message %}
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{ success_message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endif %}
+                
+                <!-- Household Name Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">Household Name</h5>
+                    <form method="post" class="mb-3">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="update_name">
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="name" name="name" value="{{ household.name }}" required maxlength="100">
+                            <small class="form-text text-muted">This name will appear on your dashboard and reports.</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Update Name</button>
+                    </form>
+                </div>
+                
+                <hr>
+                
+                <!-- Household Members Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">Household Members</h5>
                     
+                    <!-- Current Members List -->
+                    {% if members %}
                     <div class="mb-3">
-                        <label for="name" class="form-label">Household Name</label>
-                        <input type="text" class="form-control {% if error_message %}is-invalid{% endif %}" id="name" name="name" value="{{ household.name }}" required maxlength="100">
-                        <small class="form-text text-muted">This name will appear on your dashboard and reports.</small>
+                        <label class="form-label">Current Members ({{ members.count }})</label>
+                        <div class="list-group">
+                            {% for member in members %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ member.email }}</strong>
+                                    {% if member == user %}
+                                    <span class="badge bg-primary ms-2">You</span>
+                                    {% endif %}
+                                </div>
+                                {% if member != user %}
+                                <form method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to remove {{ member.email }} from this household?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="remove_member">
+                                    <input type="hidden" name="user_id" value="{{ member.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
+                    {% endif %}
                     
-                    <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">Cancel</a>
+                    <!-- Add New Member Form -->
+                    <div>
+                        <label class="form-label">Add New Member</label>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="add_member">
+                            <div class="mb-2">
+                                <input type="email" class="form-control" name="email" placeholder="Email address" required>
+                                <small class="form-text text-muted">Enter the email address for the new user. This will be used as their username for login.</small>
+                            </div>
+                            <button type="submit" class="btn btn-success">Create User & Add to Household</button>
+                        </form>
+                        <small class="form-text text-muted d-block mt-2">A new user account will be created. They will be prompted to set a password on first login.</small>
                     </div>
-                </form>
+                </div>
+                
+                <hr>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
+                </div>
             </div>
         </div>
     </div>

@@ -29,7 +29,7 @@
                         <strong>Categories:</strong> {{ template.get_category_count }}
                     </div>
                     <div class="col-md-3">
-                        <strong>Created By:</strong> {{ template.created_by.username|default:"System" }}
+                        <strong>Created By:</strong> {{ template.created_by.email|default:"System" }}
                     </div>
                     <div class="col-md-3">
                         <strong>Created:</strong> {{ template.created_at|date:"Y-m-d H:i" }}

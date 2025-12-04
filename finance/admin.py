@@ -1,5 +1,37 @@
 from django.contrib import admin
-from .models import Category, Transaction, Budget, Household, CategoryNote, BudgetTemplate, TemplateCategory
+from django.contrib.auth.admin import UserAdmin
+from .models import Category, Transaction, Budget, Household, CategoryNote, BudgetTemplate, TemplateCategory, User
+
+@admin.register(User)
+class CustomUserAdmin(UserAdmin):
+    """Custom admin for User model with email as username"""
+    list_display = ('email', 'first_name', 'last_name', 'is_staff', 'is_active', 'date_joined')
+    list_filter = ('is_staff', 'is_superuser', 'is_active', 'date_joined')
+    search_fields = ('email', 'first_name', 'last_name')
+    ordering = ('email',)
+    
+    # Remove username from fieldsets since we use email
+    fieldsets = (
+        (None, {'fields': ('email', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name')}),
+        ('Permissions', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
+    
+    add_fieldsets = (
+        (None, {
+            'classes': ('wide',),
+            'fields': ('email', 'password1', 'password2'),
+        }),
+    )
+    
+    # Ensure the admin login form uses email
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        # Remove username field if it exists
+        if 'username' in form.base_fields:
+            del form.base_fields['username']
+        return form
 
 @admin.register(Household)
 class HouseholdAdmin(admin.ModelAdmin):
