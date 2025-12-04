@@ -3,15 +3,17 @@
 import django.contrib.auth.models
 import django.core.validators
 import django.utils.timezone
-from django.conf import settings
 from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
+        # This migration must run BEFORE any migrations that use
+        # settings.AUTH_USER_MODEL as a swappable dependency.
+        # We depend on auth and the last finance migration before any User references
         ('auth', '0012_alter_user_first_name_max_length'),
-        ('finance', '0013_budgettemplate_templatecategory'),
+        ('finance', '0005_alter_category_type'),  # Last migration before User references (0007)
     ]
 
     operations = [

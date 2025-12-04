@@ -9,6 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('finance', '0011_set_existing_categories_to_essential'),
+        ('finance', '0014_user'),  # Explicitly depend on User model creation
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
