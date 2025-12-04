@@ -3,15 +3,6 @@
 {% block content %}
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
     <h1 class="h2">Categories</h1>
-    <div class="btn-toolbar mb-2 mb-md-0">
-        <div class="btn-group me-2 flex-wrap">
-            <a href="{% url 'bulk_add_categories' %}" class="btn btn-sm btn-outline-primary mb-2 mb-md-0">Bulk Add Sub-categories</a>
-            <a href="{% url 'add_category' %}" class="btn btn-sm btn-primary mb-2 mb-md-0">Add New Category</a>
-            {% if income_categories or expense_categories or savings_categories %}
-            <a href="{% url 'clear_all_categories' %}" class="btn btn-sm btn-outline-danger mb-2 mb-md-0">Clear All Categories</a>
-            {% endif %}
-        </div>
-    </div>
 </div>
 
 <div class="alert alert-info" role="alert">
@@ -52,6 +43,30 @@
         font-weight: bold;
     }
 
+    /* Sidebar styling */
+    .list-group-item-action {
+        border-left: 3px solid transparent;
+        transition: all 0.2s;
+    }
+    
+    .list-group-item-action:hover {
+        background-color: #f8f9fa;
+        border-left-color: #0d6efd;
+    }
+    
+    .list-group-item-action svg {
+        vertical-align: -0.125em;
+    }
+    
+    /* Clear separation between sidebar and content */
+    [style*="border-right"] {
+        padding-right: 1rem !important;
+    }
+    
+    .ps-md-3 {
+        padding-left: 1rem !important;
+    }
+    
     /* Mobile optimizations */
     @media (max-width: 768px) {
         .col-check {
@@ -68,9 +83,18 @@
             font-size: 0.9rem;
         }
         
-        /* Better spacing for buttons */
-        .btn-group {
-            flex-wrap: wrap;
+        /* Sidebar becomes horizontal on mobile - remove border */
+        .col-md-3[style*="border-right"] {
+            border-right: none !important;
+            border-bottom: 2px solid #dee2e6;
+            padding-right: 0 !important;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .ps-md-3 {
+            padding-left: 0 !important;
+            padding-top: 1rem;
         }
         
         /* Hide some columns on very small screens */
@@ -83,7 +107,51 @@
 </style>
 
 <div class="row">
-    <div class="col-12 col-md-6 mb-4 mb-md-0">
+    <!-- Left Sidebar Menu -->
+    <div class="col-12 col-md-3 col-lg-2 mb-4 mb-md-0 pe-md-3" style="border-right: 2px solid #dee2e6;">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h6 class="mb-0">Actions</h6>
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{% url 'add_category' %}" class="list-group-item list-group-item-action">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-plus-circle me-2" viewBox="0 0 16 16">
+                        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+                        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+                    </svg>
+                    Add New Category
+                </a>
+                <a href="{% url 'bulk_add_categories' %}" class="list-group-item list-group-item-action">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-list-ul me-2" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M5 11.5a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h9a.5.5 0 0 1 0 1h-9a.5.5 0 0 1-.5-.5zm-3 1a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm0 4a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"/>
+                    </svg>
+                    Bulk Add Sub-categories
+                </a>
+                {% if income_categories or expense_categories or savings_categories %}
+                <a href="{% url 'reset_budget' %}" class="list-group-item list-group-item-action list-group-item-warning">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise me-2" viewBox="0 0 16 16">
+                        <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                        <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    </svg>
+                    Reset Budget
+                </a>
+                <a href="{% url 'clear_all_categories' %}" class="list-group-item list-group-item-action list-group-item-danger">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-trash me-2" viewBox="0 0 16 16">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+                        <path fill-rule="evenodd" d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+                    </svg>
+                    Clear All Categories
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content Area (Three Columns) -->
+    <div class="col-12 col-md-9 col-lg-10 ps-md-3">
+        <div class="row">
+            <!-- Income Categories -->
+            <div class="col-12 col-lg-4 mb-4 mb-lg-0">
         <div class="card mb-4">
             <div class="card-header bg-success text-white">
                 Income Categories
@@ -169,11 +237,12 @@
                 {% endfor %}
             </ul>
         </div>
-    </div>
-    <div class="col-12 col-md-6 mb-4 mb-md-0">
-        <div class="card mb-4">
-            <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
-                <span>Expense Categories</span>
+            </div>
+            <!-- Expense Categories -->
+            <div class="col-12 col-lg-4 mb-4 mb-lg-0">
+                <div class="card mb-4">
+                    <div class="card-header bg-danger text-white d-flex justify-content-between align-items-center">
+                        <span>Expense Categories</span>
                 <div class="btn-group btn-group-sm">
                     <button type="button" class="btn btn-sm btn-outline-light" id="expandAllExpenses">
                         Expand All
@@ -271,106 +340,109 @@
                 {% endfor %}
             </div>
         </div>
-
-        <!-- Savings Categories -->
-        <div class="card mb-4">
-            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
-                <span>Savings & Investments</span>
-                <div class="btn-group btn-group-sm">
-                    <button type="button" class="btn btn-sm btn-outline-light" id="expandAllSavings">
-                        Expand All
-                    </button>
-                    <button type="button" class="btn btn-sm btn-outline-light" id="collapseAllSavings">
-                        Collapse All
-                    </button>
-                </div>
             </div>
-
-            <!-- Column Headers -->
-            <div class="list-group-item bg-light border-bottom py-2">
-                <div class="d-flex align-items-center">
-                    <div class="col-name ps-2 col-header text-start">Category</div>
-                    <div class="col-check col-header">Persistent</div>
-                    <div class="col-check col-header" style="width: 120px;">Track Manually</div>
-                    <div class="col-action"></div>
-                </div>
-            </div>
-
-            <div class="card-body p-0">
-                {% for category in savings_categories %}
-                <div class="list-group-item border-start-0 border-end-0 parent-category-row"
-                    data-category-id="{{ category.id }}" data-category-type="SAVINGS">
-                    <div class="d-flex align-items-center mb-0">
-                        <div class="col-name d-flex align-items-center">
-                            <div style="cursor: pointer;" data-bs-toggle="collapse"
-                                data-bs-target="#savings-{{ category.id }}" aria-expanded="true" class="me-2">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor"
-                                    class="bi bi-chevron-down" viewBox="0 0 16 16">
-                                    <path fill-rule="evenodd"
-                                        d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
-                                </svg>
-                            </div>
-                            <strong>{{ category.name }}</strong>
-                        </div>
-                        <div class="col-check">
-                            {% if category.is_persistent %}
-                            <span class="check-mark">✓</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-check" style="width: 120px;">
-                            {% if category.payment_type == 'MANUAL' %}
-                            <span class="check-mark text-warning">✓</span>
-                            {% endif %}
-                        </div>
-                        <div class="col-action">
-                            <a href="{% url 'edit_category' category.id %}" class="text-primary" title="Edit">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                                    class="bi bi-pencil" viewBox="0 0 16 16">
-                                    <path
-                                        d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
-                                </svg>
-                            </a>
+            <!-- Savings Categories -->
+            <div class="col-12 col-lg-4 mb-4 mb-lg-0">
+                <div class="card mb-4">
+                    <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                        <span>Savings & Investments</span>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-sm btn-outline-light" id="expandAllSavings">
+                                Expand All
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-light" id="collapseAllSavings">
+                                Collapse All
+                            </button>
                         </div>
                     </div>
-                    {% if category.children.all %}
-                    <div class="collapse" id="savings-{{ category.id }}">
-                        <ul class="list-group list-group-flush mt-2">
-                            {% for child in category.children.all %}
-                            <li class="list-group-item ps-4 border-0 py-2 bg-light sub-category-row" draggable="true"
-                                data-category-id="{{ child.id }}" data-parent-id="{{ category.id }}">
-                                <div class="d-flex align-items-center">
-                                    <div class="col-name">
-                                        <small class="text-muted">↳ {{ child.name }}</small>
+
+                    <!-- Column Headers -->
+                    <div class="list-group-item bg-light border-bottom py-2">
+                        <div class="d-flex align-items-center">
+                            <div class="col-name ps-2 col-header text-start">Category</div>
+                            <div class="col-check col-header">Persistent</div>
+                            <div class="col-check col-header" style="width: 120px;">Track Manually</div>
+                            <div class="col-action"></div>
+                        </div>
+                    </div>
+
+                    <div class="card-body p-0">
+                        {% for category in savings_categories %}
+                        <div class="list-group-item border-start-0 border-end-0 parent-category-row"
+                            data-category-id="{{ category.id }}" data-category-type="SAVINGS">
+                            <div class="d-flex align-items-center mb-0">
+                                <div class="col-name d-flex align-items-center">
+                                    <div style="cursor: pointer;" data-bs-toggle="collapse"
+                                        data-bs-target="#savings-{{ category.id }}" aria-expanded="true" class="me-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="currentColor"
+                                            class="bi bi-chevron-down" viewBox="0 0 16 16">
+                                            <path fill-rule="evenodd"
+                                                d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z" />
+                                        </svg>
                                     </div>
-                                    <div class="col-check">
-                                        {% if child.is_persistent %}
-                                        <span class="check-mark">✓</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-check" style="width: 120px;">
-                                        {% if child.payment_type == 'MANUAL' %}
-                                        <span class="check-mark text-warning">✓</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="col-action">
-                                        <a href="{% url 'edit_category' child.id %}" class="text-primary" title="Edit">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
-                                                fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
-                                                <path
-                                                    d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
-                                            </svg>
-                                        </a>
-                                    </div>
+                                    <strong>{{ category.name }}</strong>
                                 </div>
-                            </li>
-                            {% endfor %}
-                        </ul>
+                                <div class="col-check">
+                                    {% if category.is_persistent %}
+                                    <span class="check-mark">✓</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-check" style="width: 120px;">
+                                    {% if category.payment_type == 'MANUAL' %}
+                                    <span class="check-mark text-warning">✓</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-action">
+                                    <a href="{% url 'edit_category' category.id %}" class="text-primary" title="Edit">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                                            class="bi bi-pencil" viewBox="0 0 16 16">
+                                            <path
+                                                d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                        </svg>
+                                    </a>
+                                </div>
+                            </div>
+                            {% if category.children.all %}
+                            <div class="collapse" id="savings-{{ category.id }}">
+                                <ul class="list-group list-group-flush mt-2">
+                                    {% for child in category.children.all %}
+                                    <li class="list-group-item ps-4 border-0 py-2 bg-light sub-category-row" draggable="true"
+                                        data-category-id="{{ child.id }}" data-parent-id="{{ category.id }}">
+                                        <div class="d-flex align-items-center">
+                                            <div class="col-name">
+                                                <small class="text-muted">↳ {{ child.name }}</small>
+                                            </div>
+                                            <div class="col-check">
+                                                {% if child.is_persistent %}
+                                                <span class="check-mark">✓</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-check" style="width: 120px;">
+                                                {% if child.payment_type == 'MANUAL' %}
+                                                <span class="check-mark text-warning">✓</span>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-action">
+                                                <a href="{% url 'edit_category' child.id %}" class="text-primary" title="Edit">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                                        fill="currentColor" class="bi bi-pencil" viewBox="0 0 16 16">
+                                                        <path
+                                                            d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z" />
+                                                    </svg>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% empty %}
+                        <p class="text-muted p-3">No savings categories found.</p>
+                        {% endfor %}
                     </div>
-                    {% endif %}
                 </div>
-                {% empty %}
-                <p class="text-muted p-3">No savings categories found.</p>
-                {% endfor %}
             </div>
         </div>
     </div>

@@ -1,0 +1,43 @@
+{% extends 'finance/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-6">
+        <div class="card mt-5">
+            <div class="card-body">
+                <h2 class="card-title text-center mb-4 text-warning">🔄 Reset Budget to Default</h2>
+                
+                <div class="alert alert-warning" role="alert">
+                    <strong>Warning:</strong> This action cannot be undone!
+                </div>
+                
+                <p>You are about to reset your budget to the default installation. This will:</p>
+                
+                <ul>
+                    <li>Delete <strong>all {{ category_count }} categories</strong> (parent and sub-categories)</li>
+                    {% if budget_count > 0 %}
+                    <li>Delete <strong>all {{ budget_count }} budget entries</strong> associated with these categories</li>
+                    {% endif %}
+                    <li>Delete all category notes</li>
+                    <li>Reinstall the default starter template with standard categories</li>
+                </ul>
+                
+                <div class="alert alert-info" role="alert">
+                    <strong>Note:</strong> Your transactions will remain, but their category associations will be removed. After reset, you'll have a fresh start with the default categories.
+                </div>
+                
+                <p class="text-muted">This is useful if you want to start over with the default category structure.</p>
+                
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-warning btn-lg">Yes, Reset Budget to Default</button>
+                        <a href="{% url 'category_list' %}" class="btn btn-secondary">Cancel</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

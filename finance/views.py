@@ -164,6 +164,7 @@ def dashboard(request):
 
     context = {
         'active_date': active_date,
+        'household': household,
         'income_budgets': income_summary,
         'expense_budgets': expense_summary,
         'savings_budgets': savings_summary,
@@ -346,6 +347,66 @@ def clear_all_categories(request):
         'budget_count': budget_count,
     }
     return render(request, 'finance/clear_all_categories_confirm.html', context)
+
+@login_required
+def edit_household(request):
+    """Edit household name"""
+    household = get_user_household(request.user)
+    if not household:
+        return redirect('register')
+    
+    # Check if user is a member of this household
+    if request.user not in household.members.all():
+        messages.error(request, 'You do not have permission to edit this household.')
+        return redirect('dashboard')
+    
+    error_message = None
+    
+    if request.method == 'POST':
+        new_name = request.POST.get('name', '').strip()
+        if not new_name:
+            error_message = 'Household name cannot be empty.'
+        else:
+            household.name = new_name
+            household.save()
+            messages.success(request, f'Household name updated to "{household.name}".')
+            return redirect('dashboard')
+    
+    return render(request, 'finance/edit_household.html', {'household': household, 'error_message': error_message})
+
+@login_required
+def reset_budget(request):
+    """Reset budget to default installation - delete all categories/budgets and reinstall default template"""
+    household = get_user_household(request.user)
+    if not household:
+        return redirect('register')
+    
+    if request.method == 'POST':
+        # Get counts before deletion for message
+        category_count = Category.objects.filter(household=household).count()
+        budget_count = Budget.objects.filter(category__household=household).count()
+        
+        # Delete all categories (this will cascade delete budgets and notes)
+        Category.objects.filter(household=household).delete()
+        
+        # Reinstall default template
+        try:
+            categories_created = create_base_starter_template(household)
+            messages.success(request, f'Budget reset complete! Deleted {category_count} categories and {budget_count} budget entries. Installed {categories_created} default categories.')
+        except Exception as e:
+            messages.error(request, f'Budget reset partially completed, but there was an error installing default categories: {str(e)}')
+        
+        return redirect('category_list')
+    
+    # GET request - show confirmation
+    category_count = Category.objects.filter(household=household).count()
+    budget_count = Budget.objects.filter(category__household=household).count()
+    
+    context = {
+        'category_count': category_count,
+        'budget_count': budget_count,
+    }
+    return render(request, 'finance/reset_budget_confirm.html', context)
 
 @login_required
 @require_POST
@@ -703,11 +764,17 @@ def register_view(request):
     if request.method == 'POST':
         form = UserCreationForm(request.POST)
         apply_template = request.POST.get('apply_template', 'false') == 'true'
+        household_name = request.POST.get('household_name', '').strip()
         
         if form.is_valid():
+            # Validate household name
+            if not household_name:
+                messages.error(request, 'Please enter a household name.')
+                return render(request, 'finance/register.html', {'form': form})
+            
             user = form.save()
-            # Create a default household for the new user
-            household = Household.objects.create(name=f"{user.username}'s Household")
+            # Create household with user-provided name
+            household = Household.objects.create(name=household_name)
             household.members.add(user)
             
             # Apply template immediately if user chose to, otherwise leave blank
