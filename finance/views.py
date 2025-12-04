@@ -376,7 +376,7 @@ def edit_household(request):
 
 @login_required
 def reset_budget(request):
-    """Reset budget to default installation - delete all categories/budgets and reinstall default template"""
+    """Reset budget to default installation - delete ALL data and reinstall default template"""
     household = get_user_household(request.user)
     if not household:
         return redirect('register')
@@ -385,6 +385,12 @@ def reset_budget(request):
         # Get counts before deletion for message
         category_count = Category.objects.filter(household=household).count()
         budget_count = Budget.objects.filter(category__household=household).count()
+        transaction_count = Transaction.objects.filter(household=household).count()
+        note_count = CategoryNote.objects.filter(category__household=household).count()
+        
+        # Delete ALL data for this household
+        # Delete transactions first (they reference categories with SET_NULL, so won't cascade)
+        Transaction.objects.filter(household=household).delete()
         
         # Delete all categories (this will cascade delete budgets and notes)
         Category.objects.filter(household=household).delete()
@@ -392,7 +398,7 @@ def reset_budget(request):
         # Reinstall default template
         try:
             categories_created = create_base_starter_template(household)
-            messages.success(request, f'Budget reset complete! Deleted {category_count} categories and {budget_count} budget entries. Installed {categories_created} default categories.')
+            messages.success(request, f'Budget reset complete! Deleted {category_count} categories, {budget_count} budget entries, {transaction_count} transactions, and {note_count} notes. Installed {categories_created} default categories.')
         except Exception as e:
             messages.error(request, f'Budget reset partially completed, but there was an error installing default categories: {str(e)}')
         
@@ -401,10 +407,14 @@ def reset_budget(request):
     # GET request - show confirmation
     category_count = Category.objects.filter(household=household).count()
     budget_count = Budget.objects.filter(category__household=household).count()
+    transaction_count = Transaction.objects.filter(household=household).count()
+    note_count = CategoryNote.objects.filter(category__household=household).count()
     
     context = {
         'category_count': category_count,
         'budget_count': budget_count,
+        'transaction_count': transaction_count,
+        'note_count': note_count,
     }
     return render(request, 'finance/reset_budget_confirm.html', context)
 
