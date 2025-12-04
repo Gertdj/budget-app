@@ -2,13 +2,14 @@ from django.shortcuts import render, redirect
 from django.db.models import Sum
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
-from django.contrib.auth import login, authenticate
+from django.contrib.auth import login, authenticate, get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.forms import UserCreationForm
-from django.contrib.auth.models import User
 from django.contrib import messages
 from decimal import Decimal
 from .models import Transaction, Category, Budget, Household, CategoryNote, BudgetTemplate, TemplateCategory
+
+User = get_user_model()  # Use custom User model
 from .forms import TransactionForm, CategoryForm, BulkCategoryForm, CustomUserCreationForm
 from .utils import open_budget_month
 from .templates import create_base_starter_template, apply_barebones_template
