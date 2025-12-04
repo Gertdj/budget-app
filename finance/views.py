@@ -731,23 +731,25 @@ def register_view(request):
     return render(request, 'finance/register.html', {'form': form})
 
 def login_view(request):
-    """User login view"""
+    """User login view - clean, professional login without messages"""
     if request.user.is_authenticated:
         return redirect('dashboard')
     
+    from django.contrib.auth.forms import AuthenticationForm
+    
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
-        user = authenticate(request, username=username, password=password)
-        if user:
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
             login(request, user)
-            messages.success(request, f'Welcome back, {username}!')
+            # Redirect without showing messages on login page
             next_url = request.GET.get('next', 'dashboard')
             return redirect(next_url)
-        else:
-            messages.error(request, 'Invalid username or password.')
+        # Form will contain error messages for invalid credentials
+    else:
+        form = AuthenticationForm()
     
-    return render(request, 'finance/login.html')
+    return render(request, 'finance/login.html', {'form': form})
 
 def logout_view(request):
     """User logout view"""
