@@ -1,93 +1,287 @@
-{% extends 'finance/base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Finance Flow</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body style="margin: 0; padding: 0; overflow: hidden;">
+<style>
+/* Full-page background with image */
+.login-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-image: url('https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+    background-size: cover;
+    background-position: center;
+    background-blend-mode: overlay;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow: auto;
+}
 
-{% block content %}
-<div class="row justify-content-center align-items-center" style="min-height: calc(100vh - 200px);">
-    <div class="col-12 col-sm-8 col-md-5 col-lg-4">
-        <div class="card shadow-sm border-0">
-            <div class="card-body p-4">
-                <div class="text-center mb-4">
-                    <h3 class="fw-bold mb-1">Sign In</h3>
-                    <p class="text-muted small mb-0">Enter your credentials to access your account</p>
-                </div>
-                
-                <form method="post" id="loginForm" autocomplete="off" novalidate>
-                    {% csrf_token %}
-                    
-                    <!-- Hidden dummy fields to confuse Chrome autofill -->
-                    <input type="text" name="fakeusernameremembered" style="position: absolute; left: -9999px; opacity: 0;" tabindex="-1" autocomplete="off">
-                    <input type="password" name="fakepasswordremembered" style="position: absolute; left: -9999px; opacity: 0;" tabindex="-1" autocomplete="off">
-                    
-                    {% if form.non_field_errors %}
-                    <div class="alert alert-danger alert-dismissible fade show mb-3" role="alert" style="font-size: 0.875rem;">
-                        {% for error in form.non_field_errors %}
-                            {{ error }}
-                        {% endfor %}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="mb-3">
-                        <label for="id_username" class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing: 0.5px; font-size: 0.75rem;">Username</label>
-                        <input 
-                            type="text" 
-                            class="form-control form-control-lg {% if form.username.errors %}is-invalid{% endif %}" 
-                            id="id_username" 
-                            name="username" 
-                            required 
-                            autocomplete="off"
-                            data-lpignore="true"
-                            data-form-type="other"
-                            readonly
-                            onfocus="this.removeAttribute('readonly');"
-                            placeholder="Enter your username"
-                            style="border-radius: 0.375rem; background-color: white !important;"
-                            value=""
-                        >
-                        {% if form.username.errors %}
-                            <div class="invalid-feedback">
-                                {{ form.username.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="mb-4">
-                        <label for="id_password" class="form-label fw-semibold small text-muted text-uppercase" style="letter-spacing: 0.5px; font-size: 0.75rem;">Password</label>
-                        <input 
-                            type="password" 
-                            class="form-control form-control-lg {% if form.password.errors %}is-invalid{% endif %}" 
-                            id="id_password" 
-                            name="password" 
-                            required 
-                            autocomplete="new-password"
-                            data-lpignore="true"
-                            data-form-type="other"
-                            readonly
-                            onfocus="this.removeAttribute('readonly');"
-                            placeholder="Enter your password"
-                            style="border-radius: 0.375rem; background-color: white !important;"
-                            value=""
-                        >
-                        {% if form.password.errors %}
-                            <div class="invalid-feedback">
-                                {{ form.password.errors.0 }}
-                            </div>
-                        {% endif %}
-                    </div>
-                    
-                    <div class="d-grid">
-                        <button type="submit" class="btn btn-primary btn-lg fw-semibold" style="border-radius: 0.375rem; padding: 0.75rem;">
-                            Sign In
-                        </button>
-                    </div>
-                </form>
-                
-                <div class="text-center mt-4 pt-3 border-top">
-                    <p class="mb-0 small text-muted">
-                        Don't have an account? 
-                        <a href="{% url 'register' %}" class="text-decoration-none fw-semibold">Create one</a>
-                    </p>
-                </div>
+/* No overlay - background image is completely clear */
+.login-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0);
+    z-index: 0;
+}
+
+/* Glassmorphism login card - translucent so background shows through */
+.login-card {
+    position: relative;
+    z-index: 1;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(15px);
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    padding: 32px;
+    width: 100%;
+    max-width: 400px;
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 28px;
+}
+
+.login-header h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 6px;
+    letter-spacing: -0.5px;
+}
+
+.login-header p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+/* Compact form inputs */
+.form-group {
+    margin-bottom: 18px;
+}
+
+.form-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-control {
+    height: 42px;
+    font-size: 14px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px 14px;
+    transition: all 0.2s ease;
+    background-color: white !important;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    outline: none;
+}
+
+.form-control::placeholder {
+    color: #9ca3af;
+    font-size: 14px;
+}
+
+/* Compact button */
+.btn-login {
+    width: 100%;
+    height: 42px;
+    font-size: 14px;
+    font-weight: 500;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    border-radius: 8px;
+    color: white;
+    transition: all 0.2s ease;
+    margin-top: 8px;
+}
+
+.btn-login:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+}
+
+/* Register link */
+.register-link {
+    text-align: center;
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.register-link p {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 0;
+}
+
+.register-link a {
+    color: #667eea;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.2s ease;
+}
+
+.register-link a:hover {
+    color: #5568d3;
+    text-decoration: underline;
+}
+
+/* Error messages */
+.alert {
+    font-size: 13px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 18px;
+}
+
+/* Prevent autofill styling */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 30px white inset !important;
+    -webkit-text-fill-color: #1a1a1a !important;
+    background-color: white !important;
+    transition: background-color 5000s ease-in-out 0s;
+}
+
+input::-webkit-credentials-auto-fill-button {
+    visibility: hidden;
+    display: none !important;
+    pointer-events: none;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 576px) {
+    .login-card {
+        padding: 24px;
+        border-radius: 12px;
+    }
+    
+    .login-header h2 {
+        font-size: 22px;
+    }
+}
+</style>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h2>Welcome Back</h2>
+            <p>Sign in to manage your budget</p>
+        </div>
+        
+        <form method="post" id="loginForm" autocomplete="off" novalidate>
+            {% csrf_token %}
+            
+            <!-- Hidden dummy fields to confuse Chrome autofill -->
+            <input type="text" name="fakeusernameremembered" style="position: absolute; left: -9999px; opacity: 0;" tabindex="-1" autocomplete="off">
+            <input type="password" name="fakepasswordremembered" style="position: absolute; left: -9999px; opacity: 0;" tabindex="-1" autocomplete="off">
+            
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {% for error in form.non_field_errors %}
+                    {{ error }}
+                {% endfor %}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
+            {% endif %}
+            
+            <div class="form-group">
+                <label for="id_username" class="form-label">Username</label>
+                <input 
+                    type="text" 
+                    class="form-control {% if form.username.errors %}is-invalid{% endif %}" 
+                    id="id_username" 
+                    name="username" 
+                    required 
+                    autocomplete="off"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    readonly
+                    onfocus="this.removeAttribute('readonly');"
+                    placeholder="Enter your username"
+                    value=""
+                >
+                {% if form.username.errors %}
+                    <div class="invalid-feedback" style="display: block; font-size: 12px; color: #dc3545; margin-top: 4px;">
+                        {{ form.username.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <div class="form-group">
+                <label for="id_password" class="form-label">Password</label>
+                <input 
+                    type="password" 
+                    class="form-control {% if form.password.errors %}is-invalid{% endif %}" 
+                    id="id_password" 
+                    name="password" 
+                    required 
+                    autocomplete="new-password"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    readonly
+                    onfocus="this.removeAttribute('readonly');"
+                    placeholder="Enter your password"
+                    value=""
+                >
+                {% if form.password.errors %}
+                    <div class="invalid-feedback" style="display: block; font-size: 12px; color: #dc3545; margin-top: 4px;">
+                        {{ form.password.errors.0 }}
+                    </div>
+                {% endif %}
+            </div>
+            
+            <button type="submit" class="btn btn-login">Sign In</button>
+        </form>
+        
+        <div class="register-link">
+            <p>Don't have an account? <a href="{% url 'register' %}">Create one</a></p>
         </div>
     </div>
 </div>
@@ -99,16 +293,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const password = document.getElementById('id_password');
     
     if (form) {
-        // Reset form immediately
         form.reset();
         
-        // Aggressively prevent autofill
         if (username) {
             username.value = '';
             username.setAttribute('autocomplete', 'off');
             username.setAttribute('data-lpignore', 'true');
             username.setAttribute('data-form-type', 'other');
-            // Remove readonly after a short delay to prevent autofill
             setTimeout(function() {
                 if (username.hasAttribute('readonly')) {
                     username.removeAttribute('readonly');
@@ -121,7 +312,6 @@ document.addEventListener('DOMContentLoaded', function() {
             password.setAttribute('autocomplete', 'new-password');
             password.setAttribute('data-lpignore', 'true');
             password.setAttribute('data-form-type', 'other');
-            // Remove readonly after a short delay
             setTimeout(function() {
                 if (password.hasAttribute('readonly')) {
                     password.removeAttribute('readonly');
@@ -129,39 +319,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 100);
         }
         
-        // Prevent autofill on all inputs
         const inputs = form.querySelectorAll('input[type="text"], input[type="password"]');
         inputs.forEach(input => {
-            if (input.id !== 'id_username' && input.id !== 'id_password') return; // Skip dummy fields
+            if (input.id !== 'id_username' && input.id !== 'id_password') return;
             
             input.setAttribute('autocomplete', input.type === 'password' ? 'new-password' : 'off');
             input.setAttribute('data-lpignore', 'true');
             input.setAttribute('data-form-type', 'other');
             
-            // Clear any values that might have been auto-filled
             if (input.value) {
                 input.value = '';
             }
             
-            // Prevent autofill on focus
             input.addEventListener('focus', function() {
                 this.setAttribute('autocomplete', this.type === 'password' ? 'new-password' : 'off');
-                if (this.value && this.type === 'password') {
-                    this.value = '';
-                }
-            });
-            
-            // Clear on paste (Chrome sometimes fills on paste)
-            input.addEventListener('paste', function(e) {
-                setTimeout(function() {
-                    if (input.type === 'password' && input.value.length > 0) {
-                        // Allow paste, but ensure it's user input
-                    }
-                }, 10);
             });
         });
         
-        // Focus username after a delay to prevent autofill trigger
         setTimeout(function() {
             if (username && !username.value) {
                 username.focus();
@@ -169,7 +343,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 200);
     }
     
-    // Clear fields on page visibility change (when user navigates back)
     document.addEventListener('visibilitychange', function() {
         if (!document.hidden) {
             if (username) {
@@ -189,76 +362,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Additional protection: Clear on page show (back/forward navigation)
     window.addEventListener('pageshow', function(event) {
         if (event.persisted) {
-            // Page was loaded from cache
             if (username) username.value = '';
             if (password) password.value = '';
             form.reset();
         }
     });
-    
-    // Prevent Chrome from showing autofill dropdown
-    if (username) {
-        username.addEventListener('focus', function() {
-            this.setAttribute('autocomplete', 'off');
-        });
-    }
-    
-    if (password) {
-        password.addEventListener('focus', function() {
-            this.setAttribute('autocomplete', 'new-password');
-        });
-    }
 });
 </script>
-
-<style>
-/* Professional login form styling */
-.card {
-    border-radius: 0.5rem;
-}
-
-.form-control:focus {
-    border-color: #0d6efd;
-    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
-}
-
-.btn-primary {
-    transition: all 0.2s ease-in-out;
-}
-
-.btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* Aggressively prevent Chrome autofill styling */
-input:-webkit-autofill,
-input:-webkit-autofill:hover,
-input:-webkit-autofill:focus,
-input:-webkit-autofill:active {
-    -webkit-box-shadow: 0 0 0 30px white inset !important;
-    -webkit-text-fill-color: #212529 !important;
-    background-color: white !important;
-    transition: background-color 5000s ease-in-out 0s;
-}
-
-/* Ensure clean appearance and prevent autofill indicators */
-input[type="text"],
-input[type="password"] {
-    background-color: white !important;
-    background-image: none !important;
-}
-
-/* Hide autofill icons */
-input::-webkit-credentials-auto-fill-button {
-    visibility: hidden;
-    display: none !important;
-    pointer-events: none;
-    position: absolute;
-    right: 0;
-}
-</style>
-{% endblock %}
+<!-- Bootstrap JS for alert dismiss -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
