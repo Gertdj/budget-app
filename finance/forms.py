@@ -39,16 +39,19 @@ class CategoryForm(forms.ModelForm):
         self.fields['is_essential'].widget = forms.CheckboxInput(attrs={'class': 'form-check-input'})
         self.fields['is_essential'].label = 'Essential (keep in Barebones template)'
         self.fields['is_essential'].help_text = 'Uncheck to mark as Non-essential (will be zeroed in Barebones template)'
-    
-    def __init__(self, *args, **kwargs):
-        household = kwargs.pop('household', None)
-        super().__init__(*args, **kwargs)
-        if household:
-            # Filter parent choices to only show categories from this household
-            self.fields['parent'].queryset = Category.objects.filter(
-                household=household, 
-                parent__isnull=True
-            ).order_by('name')
+        
+        # Set defaults for new categories
+        if not self.instance.pk:  # New category
+            # Default payment_type to AUTO
+            self.fields['payment_type'].initial = 'AUTO'
+            # Default is_persistent based on whether parent is set
+            # If parent is None (main category), is_persistent=False
+            # If parent is set (sub-category), is_persistent=True
+            # Check if parent is provided in initial data
+            if 'parent' in self.initial and self.initial['parent']:
+                self.fields['is_persistent'].initial = True
+            else:
+                self.fields['is_persistent'].initial = False
 
 class BulkCategoryForm(forms.Form):
     def __init__(self, *args, **kwargs):
@@ -67,14 +70,14 @@ class BulkCategoryForm(forms.Form):
     )
     is_persistent = forms.BooleanField(
         required=False,
-        initial=False,
+        initial=True,  # Sub-categories default to persistent
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         label="Persistent",
         help_text="Check if these categories should have persistent budgets (auto-import from previous month)"
     )
     payment_type = forms.ChoiceField(
         choices=Category.PAYMENT_TYPE_CHOICES,
-        initial='MANUAL',
+        initial='AUTO',
         widget=forms.Select(attrs={'class': 'form-select'}),
         label="Payment Type",
         help_text="Select how these categories should be tracked"
@@ -102,7 +105,7 @@ class BulkMainCategoryForm(forms.Form):
     )
     payment_type = forms.ChoiceField(
         choices=Category.PAYMENT_TYPE_CHOICES,
-        initial='MANUAL',
+        initial='AUTO',
         widget=forms.Select(attrs={'class': 'form-select'}),
         label="Payment Type",
         help_text="Select how these categories should be tracked"
