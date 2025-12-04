@@ -10,7 +10,7 @@ from decimal import Decimal
 from .models import Transaction, Category, Budget, Household, CategoryNote, BudgetTemplate, TemplateCategory
 
 User = get_user_model()  # Use custom User model
-from .forms import TransactionForm, CategoryForm, BulkCategoryForm, CustomUserCreationForm
+from .forms import TransactionForm, CategoryForm, BulkCategoryForm, BulkMainCategoryForm, CustomUserCreationForm
 from .utils import open_budget_month
 from .templates import create_base_starter_template, apply_barebones_template
 from .excel_reports import export_yearly_budget, export_monthly_detail, export_category_summary, export_transactions, export_category_setup
@@ -282,7 +282,44 @@ def bulk_add_categories(request):
             return redirect('category_list')
     else:
         form = BulkCategoryForm(household=household)
-    return render(request, 'finance/bulk_category_form.html', {'form': form, 'title': 'Bulk Add Sub-categories'})
+    return render(request, 'finance/bulk_category_form.html', {'form': form, 'title': 'Add Bulk Sub-Categories'})
+
+@login_required
+def bulk_add_main_categories(request):
+    """Bulk add main/parent categories (not sub-categories)"""
+    household = get_user_household(request.user, request)
+    if not household:
+        return redirect('register')
+    
+    if request.method == 'POST':
+        form = BulkMainCategoryForm(request.POST)
+        if form.is_valid():
+            category_type = form.cleaned_data['type']
+            is_persistent = form.cleaned_data['is_persistent']
+            payment_type = form.cleaned_data['payment_type']
+            is_essential = form.cleaned_data['is_essential']
+            names = form.cleaned_data['names'].splitlines()
+            created_count = 0
+            for name in names:
+                name = name.strip()
+                if name:
+                    # Check if category already exists
+                    if not Category.objects.filter(household=household, name=name, parent__isnull=True).exists():
+                        Category.objects.create(
+                            household=household,
+                            name=name,
+                            type=category_type,
+                            parent=None,  # Main category, no parent
+                            is_persistent=is_persistent,
+                            payment_type=payment_type,
+                            is_essential=is_essential
+                        )
+                        created_count += 1
+            messages.success(request, f'Successfully created {created_count} main category/categories.')
+            return redirect('category_list')
+    else:
+        form = BulkMainCategoryForm()
+    return render(request, 'finance/bulk_main_category_form.html', {'form': form, 'title': 'Bulk Add Categories'})
 
 @login_required
 def edit_category(request, category_id):

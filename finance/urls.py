@@ -12,6 +12,7 @@ urlpatterns = [
     path('', views.dashboard, name='dashboard'),
     path('categories/', views.category_list, name='category_list'),
     path('categories/bulk-add/', views.bulk_add_categories, name='bulk_add_categories'),
+    path('categories/bulk-add-main/', views.bulk_add_main_categories, name='bulk_add_main_categories'),
     path('categories/edit/<int:category_id>/', views.edit_category, name='edit_category'),
     path('categories/delete/<int:category_id>/', views.delete_category, name='delete_category'),
     path('categories/clear-all/', views.clear_all_categories, name='clear_all_categories'),

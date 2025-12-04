@@ -85,6 +85,41 @@ class BulkCategoryForm(forms.Form):
         label="Sub-categories"
     )
 
+class BulkMainCategoryForm(forms.Form):
+    """Form for bulk adding main/parent categories"""
+    type = forms.ChoiceField(
+        choices=Category.TYPE_CHOICES,
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Category Type",
+        help_text="Select whether these are Income, Expense, or Savings categories"
+    )
+    is_persistent = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Persistent",
+        help_text="Check if these categories should have persistent budgets (auto-import from previous month)"
+    )
+    payment_type = forms.ChoiceField(
+        choices=Category.PAYMENT_TYPE_CHOICES,
+        initial='MANUAL',
+        widget=forms.Select(attrs={'class': 'form-select'}),
+        label="Payment Type",
+        help_text="Select how these categories should be tracked"
+    )
+    is_essential = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Essential",
+        help_text="Check if these categories are essential (will be kept in Barebones template)"
+    )
+    names = forms.CharField(
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Enter one category per line'}),
+        help_text="Enter one main category per line. These will be created as parent categories (not sub-categories).",
+        label="Categories"
+    )
+
 class CustomUserCreationForm(UserCreationForm):
     """Custom user creation form that uses email as username"""
     email = forms.EmailField(
