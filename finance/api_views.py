@@ -25,17 +25,7 @@ from .utils import open_budget_month
 from .templates import create_base_starter_template, apply_barebones_template
 from .excel_reports import export_yearly_budget, export_monthly_detail, export_category_summary, export_transactions
 from django.http import HttpResponse
-
-
-def get_user_household(user):
-    """Get the user's primary household"""
-    if not user.is_authenticated:
-        return None
-    household = user.households.first()
-    if not household:
-        household = Household.objects.create(name=f"{user.email}'s Household")
-        household.members.add(user)
-    return household
+from .views import get_user_household  # Import session-aware function
 
 
 class HouseholdViewSet(viewsets.ModelViewSet):
@@ -62,7 +52,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter categories by user's household"""
-        household = get_user_household(self.request.user)
+        household = get_user_household(self.request.user, self.request)
         if not household:
             return Category.objects.none()
         return Category.objects.filter(household=household).select_related('parent', 'household').prefetch_related('children', 'notes')
@@ -75,7 +65,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Set household when creating category"""
-        household = get_user_household(self.request.user)
+        household = get_user_household(self.request.user, self.request)
         if household:
             serializer.save(household=household)
     
@@ -138,7 +128,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter budgets by user's household"""
-        household = get_user_household(self.request.user)
+        household = get_user_household(self.request.user, self.request)
         if not household:
             return Budget.objects.none()
         
@@ -156,7 +146,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         """Ensure category belongs to user's household"""
-        household = get_user_household(self.request.user)
+        household = get_user_household(self.request.user, self.request)
         category = serializer.validated_data['category']
         if category.household != household:
             raise serializers.ValidationError("Category does not belong to your household")
@@ -173,7 +163,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
         if not all([category_id, month, year, amount is not None]):
             return Response({'success': False, 'error': 'Missing required fields'}, status=status.HTTP_400_BAD_REQUEST)
         
-        household = get_user_household(request.user)
+        household = get_user_household(request.user, request)
         if not household:
             return Response({'success': False, 'error': 'No household found'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -216,7 +206,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
         if not year or not month:
             return Response({'success': False, 'error': 'Year and month required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        household = get_user_household(request.user)
+        household = get_user_household(request.user, request)
         if not household:
             return Response({'success': False, 'error': 'No household found'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -235,7 +225,7 @@ class BudgetViewSet(viewsets.ModelViewSet):
         if not year or not month:
             return Response({'success': False, 'error': 'Year and month required'}, status=status.HTTP_400_BAD_REQUEST)
         
-        household = get_user_household(request.user)
+        household = get_user_household(request.user, request)
         if not household:
             return Response({'success': False, 'error': 'No household found'}, status=status.HTTP_400_BAD_REQUEST)
         
@@ -254,7 +244,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter transactions by user's household"""
-        household = get_user_household(self.request.user)
+        household = get_user_household(self.request.user, self.request)
         if not household:
             return Transaction.objects.none()
         return Transaction.objects.filter(household=household).select_related('category', 'household')
@@ -268,7 +258,7 @@ class CategoryNoteViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter notes by user's household"""
-        household = get_user_household(self.request.user)
+        household = get_user_household(self.request.user, self.request)
         if not household:
             return CategoryNote.objects.none()
         return CategoryNote.objects.filter(category__household=household).select_related('category', 'author')
@@ -299,7 +289,7 @@ class BudgetTemplateViewSet(viewsets.ReadOnlyModelViewSet):
 @permission_classes([IsAuthenticated])
 def dashboard_data(request):
     """Get dashboard data (maintains existing functionality)"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return Response({'error': 'No household found'}, status=status.HTTP_400_BAD_REQUEST)
     

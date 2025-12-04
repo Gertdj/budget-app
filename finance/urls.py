@@ -18,6 +18,7 @@ urlpatterns = [
     path('categories/reset-budget/', views.reset_budget, name='reset_budget'),
     path('categories/move/', views.move_category, name='move_category'),
     path('household/edit/', views.edit_household, name='edit_household'),
+    path('household/switch/<int:household_id>/', views.switch_household, name='switch_household'),
     path('add-category/', views.add_category, name='add_category'),
     path('budget/yearly/', views.yearly_budget_view, name='yearly_budget'),
     path('budget/yearly/<int:year>/', views.yearly_budget_view, name='yearly_budget_year'),

@@ -5,7 +5,7 @@
     <div class="col-12 col-md-8">
         <div class="card mt-5">
             <div class="card-body">
-                <h2 class="card-title text-center mb-4">Manage Household</h2>
+                <h2 class="card-title text-center mb-4">Manage Households</h2>
                 
                 {% if error_message %}
                 <div class="alert alert-danger alert-dismissible fade show" role="alert">
@@ -21,9 +21,53 @@
                 </div>
                 {% endif %}
                 
-                <!-- Household Name Section -->
+                <!-- Switch Household Section -->
+                {% if all_households|length > 1 %}
                 <div class="mb-4">
-                    <h5 class="mb-3">Household Name</h5>
+                    <h5 class="mb-3">Switch Household</h5>
+                    <p class="text-muted">You belong to {{ all_households|length }} households. Select which one to use:</p>
+                    <div class="list-group">
+                        {% for h in all_households %}
+                        <div class="list-group-item d-flex justify-content-between align-items-center {% if h.id == household.id %}active{% endif %}">
+                            <div>
+                                <strong>{{ h.name }}</strong>
+                                {% if h.id == household.id %}
+                                <span class="badge bg-success ms-2">Active</span>
+                                {% endif %}
+                                <br>
+                                <small class="text-muted">{{ h.members.count }} member{{ h.members.count|pluralize }}, {{ h.categories.count }} categor{{ h.categories.count|pluralize:"y,ies" }}</small>
+                            </div>
+                            {% if h.id != household.id %}
+                            <a href="{% url 'switch_household' h.id %}" class="btn btn-sm btn-outline-primary">Switch</a>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <hr>
+                {% endif %}
+                
+                <!-- Create New Household Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">Create New Household</h5>
+                    <p class="text-muted">Create a new household for a separate budget (e.g., personal vs business).</p>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_household">
+                        <div class="mb-3">
+                            <label for="new_household_name" class="form-label">Household Name</label>
+                            <input type="text" class="form-control" id="new_household_name" name="new_household_name" placeholder="e.g., Business Budget, Vacation Fund" required maxlength="100">
+                            <small class="form-text text-muted">This will create a completely separate budget with its own categories and data.</small>
+                        </div>
+                        <button type="submit" class="btn btn-success">Create New Household</button>
+                    </form>
+                </div>
+                
+                <hr>
+                
+                <!-- Current Household Name Section -->
+                <div class="mb-4">
+                    <h5 class="mb-3">Current Household: {{ household.name }}</h5>
                     <form method="post" class="mb-3">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="update_name">

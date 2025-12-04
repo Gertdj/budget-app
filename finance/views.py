@@ -17,15 +17,37 @@ from .excel_reports import export_yearly_budget, export_monthly_detail, export_c
 import datetime
 import calendar
 
-def get_user_household(user):
-    """Get the user's primary household (first household they belong to)"""
+def get_user_household(user, request=None):
+    """Get the user's active household (from session, or first household they belong to)"""
     if not user.is_authenticated:
         return None
+    
+    # Check if there's a selected household in the session
+    if request and 'active_household_id' in request.session:
+        try:
+            household = Household.objects.get(id=request.session['active_household_id'])
+            # Verify user is still a member
+            if user in household.members.all():
+                return household
+            else:
+                # User is no longer a member, clear session
+                del request.session['active_household_id']
+        except Household.DoesNotExist:
+            # Household was deleted, clear session
+            if 'active_household_id' in request.session:
+                del request.session['active_household_id']
+    
+    # Fallback to first household
     household = user.households.first()
     if not household:
         # Create a default household if user doesn't have one
         household = Household.objects.create(name=f"{user.email}'s Household")
         household.members.add(user)
+    
+    # Store in session for future requests
+    if request:
+        request.session['active_household_id'] = household.id
+    
     return household
 
 def check_and_apply_base_template(household):
@@ -74,9 +96,15 @@ def dashboard(request):
     end_date = active_date.replace(day=last_day)
 
     # Get user's household
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
+    
+    # Get all households for selector - force evaluation to ensure all are included
+    # Debug: Check if user is actually a member of all households
+    all_households = list(request.user.households.all().order_by('name'))
+    # Also check if there are any households the user might have created but isn't a member of
+    # (This shouldn't happen, but let's be thorough)
     
     # Note: Template application is now handled during registration
     # This check is kept for backward compatibility but won't auto-apply
@@ -167,6 +195,7 @@ def dashboard(request):
     context = {
         'active_date': active_date,
         'household': household,
+        'all_households': all_households,
         'income_budgets': income_summary,
         'expense_budgets': expense_summary,
         'savings_budgets': savings_summary,
@@ -184,7 +213,7 @@ def dashboard(request):
 
 @login_required
 def category_list(request):
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -211,7 +240,7 @@ def category_list(request):
 
 @login_required
 def add_category(request):
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -228,7 +257,7 @@ def add_category(request):
 
 @login_required
 def bulk_add_categories(request):
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -258,7 +287,7 @@ def bulk_add_categories(request):
 @login_required
 def edit_category(request, category_id):
     """Edit an existing category"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -292,7 +321,7 @@ def edit_category(request, category_id):
 @login_required
 def delete_category(request, category_id):
     """Delete a category (only if no budgets exist)"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -326,7 +355,7 @@ def delete_category(request, category_id):
 @login_required
 def clear_all_categories(request):
     """Delete all categories for the user's household"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -351,9 +380,31 @@ def clear_all_categories(request):
     return render(request, 'finance/clear_all_categories_confirm.html', context)
 
 @login_required
+def switch_household(request, household_id):
+    """Switch to a different household"""
+    try:
+        household = Household.objects.get(id=household_id)
+        # Verify user is a member
+        if request.user not in household.members.all():
+            messages.error(request, 'You do not have permission to access this household.')
+            return redirect('dashboard')
+        
+        # Set as active household in session
+        request.session['active_household_id'] = household.id
+        messages.success(request, f'Switched to household: {household.name}')
+        return redirect('dashboard')
+    except Household.DoesNotExist:
+        messages.error(request, 'Household not found.')
+        return redirect('dashboard')
+
+@login_required
 def edit_household(request):
-    """Edit household name and manage members"""
-    household = get_user_household(request.user)
+    """Edit household name and manage members, switch between households, create new households"""
+    # Get all households user belongs to - force evaluation
+    all_households = list(request.user.households.all().order_by('name'))
+    
+    # Get current active household
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -421,12 +472,30 @@ def edit_household(request):
                         success_message = f'User "{user_to_remove.email}" has been removed from the household.'
                 except User.DoesNotExist:
                     error_message = 'User not found.'
+        
+        elif action == 'create_household':
+            new_name = request.POST.get('new_household_name', '').strip()
+            if not new_name:
+                error_message = 'Household name cannot be empty.'
+            else:
+                # Create new household
+                new_household = Household.objects.create(name=new_name)
+                new_household.members.add(request.user)
+                
+                # Set as active household
+                request.session['active_household_id'] = new_household.id
+                
+                success_message = f'Created new household: {new_household.name}'
+                # Refresh household list - force evaluation
+                all_households = list(request.user.households.all().order_by('name'))
+                household = new_household
     
-    # Get all members
+    # Get all members of current household
     members = household.members.all().order_by('email')
     
     return render(request, 'finance/edit_household.html', {
         'household': household,
+        'all_households': all_households,
         'members': members,
         'error_message': error_message,
         'success_message': success_message
@@ -435,7 +504,7 @@ def edit_household(request):
 @login_required
 def reset_budget(request):
     """Reset budget to default installation - delete ALL data and reinstall default template"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -480,7 +549,7 @@ def reset_budget(request):
 @require_POST
 def move_category(request):
     """Move a sub-category to a new parent via AJAX"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return JsonResponse({'success': False, 'error': 'No household found'}, status=400)
     
@@ -510,7 +579,7 @@ def move_category(request):
 
 @login_required
 def yearly_budget_view(request, year=None):
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -662,7 +731,7 @@ def yearly_budget_view(request, year=None):
 
 @login_required
 def open_month_view(request, year, month):
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -673,7 +742,7 @@ def open_month_view(request, year, month):
 @login_required
 def apply_barebones_template_view(request, year, month):
     """Apply barebones emergency budget template to a specific month"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -692,7 +761,7 @@ def apply_barebones_template_view(request, year, month):
 @login_required
 @require_POST
 def update_budget(request):
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return JsonResponse({'success': False, 'error': 'No household found'}, status=400)
     
@@ -748,7 +817,7 @@ def update_budget(request):
 @require_POST
 def toggle_payment(request):
     """Toggle is_paid status for a budget entry"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return JsonResponse({'success': False, 'error': 'No household found'}, status=400)
     
@@ -771,7 +840,7 @@ def toggle_payment(request):
 @login_required
 def outstanding_payments(request, year=None, month=None):
     """Show unpaid manual expenses for a specific month, grouped by parent category"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return redirect('register')
     
@@ -1058,7 +1127,7 @@ def admin_households(request):
 @login_required
 def category_notes(request, category_id):
     """View and manage notes for a category"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return JsonResponse({'success': False, 'error': 'No household found'}, status=400)
     
@@ -1109,7 +1178,7 @@ def category_notes(request, category_id):
 @require_POST
 def delete_category_note(request, note_id):
     """Delete a category note"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         return JsonResponse({'success': False, 'error': 'No household found'}, status=400)
     
@@ -1246,7 +1315,7 @@ def admin_template_set_default(request, template_id):
 @login_required
 def export_yearly_budget_excel(request, year):
     """Export yearly budget to Excel"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         messages.error(request, 'No household found')
         return redirect('dashboard')
@@ -1267,7 +1336,7 @@ def export_yearly_budget_excel(request, year):
 @login_required
 def export_monthly_detail_excel(request, year, month):
     """Export monthly budget detail to Excel"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         messages.error(request, 'No household found')
         return redirect('dashboard')
@@ -1289,7 +1358,7 @@ def export_monthly_detail_excel(request, year, month):
 @login_required
 def export_category_summary_excel(request, year):
     """Export category summary to Excel"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         messages.error(request, 'No household found')
         return redirect('dashboard')
@@ -1310,7 +1379,7 @@ def export_category_summary_excel(request, year):
 @login_required
 def export_transactions_excel(request):
     """Export transactions to Excel"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         messages.error(request, 'No household found')
         return redirect('dashboard')
@@ -1347,7 +1416,7 @@ def export_transactions_excel(request):
 @login_required
 def export_category_setup_excel(request):
     """Export category setup information to Excel"""
-    household = get_user_household(request.user)
+    household = get_user_household(request.user, request)
     if not household:
         messages.error(request, 'No household found')
         return redirect('dashboard')
