@@ -1,142 +1,191 @@
 {% extends 'finance/base.html' %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-12 col-md-8">
-        <div class="card mt-5">
-            <div class="card-body">
-                <h2 class="card-title text-center mb-4">Manage Households</h2>
-                
-                {% if error_message %}
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    {{ error_message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+<style>
+    .household-section {
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        background-color: #fff;
+    }
+    
+    .household-section.active-household {
+        border-left: 4px solid #0d6efd;
+        background-color: #f8f9ff;
+    }
+    
+    .household-section h5 {
+        color: #495057;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .section-divider {
+        border-top: 2px solid #dee2e6;
+        margin: 2rem 0;
+    }
+</style>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h3">Manage Households</h1>
+                <a href="{% url 'dashboard' %}" class="btn btn-outline-secondary">← Back to Dashboard</a>
+            </div>
+            
+            {% if error_message %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ error_message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+            
+            {% if success_message %}
+            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                {{ success_message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- Left Column: Current Household & Members -->
+        <div class="col-12 col-lg-8">
+            <!-- Current Active Household Section -->
+            <div class="household-section active-household">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <span class="badge bg-primary me-2">Active</span>
+                        Current Household: {{ household.name }}
+                    </h5>
                 </div>
-                {% endif %}
                 
-                {% if success_message %}
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ success_message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                <!-- Edit Household Name -->
+                <div class="card mb-3">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0">Edit Household Name</h6>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="update_name">
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Household Name</label>
+                                <input type="text" class="form-control" id="name" name="name" value="{{ household.name }}" required maxlength="100">
+                                <small class="form-text text-muted">This name appears on your dashboard and reports.</small>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Name</button>
+                        </form>
+                    </div>
                 </div>
-                {% endif %}
                 
-                <!-- Switch Household Section -->
-                {% if all_households|length > 1 %}
-                <div class="mb-4">
-                    <h5 class="mb-3">Switch Household</h5>
-                    <p class="text-muted">You belong to {{ all_households|length }} households. Select which one to use:</p>
-                    <div class="list-group">
-                        {% for h in all_households %}
-                        <div class="list-group-item d-flex justify-content-between align-items-center {% if h.id == household.id %}active{% endif %}">
-                            <div>
+                <!-- Household Members -->
+                <div class="card">
+                    <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">Household Members</h6>
+                        <span class="badge bg-secondary">{{ members.count }} member{{ members.count|pluralize }}</span>
+                    </div>
+                    <div class="card-body">
+                        <!-- Current Members List -->
+                        {% if members %}
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Current Members</label>
+                            <div class="list-group">
+                                {% for member in members %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ member.email }}</strong>
+                                        {% if member == user %}
+                                        <span class="badge bg-primary ms-2">You</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if member != user %}
+                                    <form method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to remove {{ member.email }} from this household?');">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="remove_member">
+                                        <input type="hidden" name="user_id" value="{{ member.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Add New Member -->
+                        <div class="border-top pt-3">
+                            <label class="form-label fw-bold">Add New Member</label>
+                            <p class="text-muted small mb-3">Create a new user account and add them to this household. They will be prompted to set a password on first login.</p>
+                            <form method="post">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="add_member">
+                                <div class="row g-2">
+                                    <div class="col-md-8">
+                                        <input type="email" class="form-control" name="email" placeholder="Email address" required>
+                                        <small class="form-text text-muted">This email will be used as their username for login.</small>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button type="submit" class="btn btn-success w-100">Create User & Add</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Right Column: Switch Household & Create New -->
+        <div class="col-12 col-lg-4">
+            <!-- Switch Household Section -->
+            {% if all_households|length > 1 %}
+            <div class="household-section mb-4">
+                <h5>Switch Household</h5>
+                <p class="text-muted small">You belong to {{ all_households|length }} households. Select which one to use:</p>
+                <div class="list-group">
+                    {% for h in all_households %}
+                    <div class="list-group-item {% if h.id == household.id %}active{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
                                 <strong>{{ h.name }}</strong>
                                 {% if h.id == household.id %}
                                 <span class="badge bg-success ms-2">Active</span>
                                 {% endif %}
                                 <br>
-                                <small class="text-muted">{{ h.members.count }} member{{ h.members.count|pluralize }}, {{ h.categories.count }} categor{{ h.categories.count|pluralize:"y,ies" }}</small>
+                                <small class="text-muted">
+                                    {{ h.members.count }} member{{ h.members.count|pluralize }}, 
+                                    {{ h.categories.count }} categor{{ h.categories.count|pluralize:"y,ies" }}
+                                </small>
                             </div>
                             {% if h.id != household.id %}
-                            <a href="{% url 'switch_household' h.id %}" class="btn btn-sm btn-outline-primary">Switch</a>
+                            <a href="{% url 'switch_household' h.id %}" class="btn btn-sm btn-outline-primary ms-2">Switch</a>
                             {% endif %}
                         </div>
-                        {% endfor %}
                     </div>
+                    {% endfor %}
                 </div>
-                <hr>
-                {% endif %}
-                
-                <!-- Create New Household Section -->
-                <div class="mb-4">
-                    <h5 class="mb-3">Create New Household</h5>
-                    <p class="text-muted">Create a new household for a separate budget (e.g., personal vs business).</p>
-                    <form method="post">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="create_household">
-                        <div class="mb-3">
-                            <label for="new_household_name" class="form-label">Household Name</label>
-                            <input type="text" class="form-control" id="new_household_name" name="new_household_name" placeholder="e.g., Business Budget, Vacation Fund" required maxlength="100">
-                            <small class="form-text text-muted">This will create a completely separate budget with its own categories and data.</small>
-                        </div>
-                        <button type="submit" class="btn btn-success">Create New Household</button>
-                    </form>
-                </div>
-                
-                <hr>
-                
-                <!-- Current Household Name Section -->
-                <div class="mb-4">
-                    <h5 class="mb-3">Current Household: {{ household.name }}</h5>
-                    <form method="post" class="mb-3">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="update_name">
-                        <div class="mb-3">
-                            <label for="name" class="form-label">Name</label>
-                            <input type="text" class="form-control" id="name" name="name" value="{{ household.name }}" required maxlength="100">
-                            <small class="form-text text-muted">This name will appear on your dashboard and reports.</small>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Update Name</button>
-                    </form>
-                </div>
-                
-                <hr>
-                
-                <!-- Household Members Section -->
-                <div class="mb-4">
-                    <h5 class="mb-3">Household Members</h5>
-                    
-                    <!-- Current Members List -->
-                    {% if members %}
+            </div>
+            {% endif %}
+            
+            <!-- Create New Household Section -->
+            <div class="household-section">
+                <h5>Create New Household</h5>
+                <p class="text-muted small mb-3">Create a separate budget (e.g., personal vs business, vacation fund, etc.). Each household has its own categories and data.</p>
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create_household">
                     <div class="mb-3">
-                        <label class="form-label">Current Members ({{ members.count }})</label>
-                        <div class="list-group">
-                            {% for member in members %}
-                            <div class="list-group-item d-flex justify-content-between align-items-center">
-                                <div>
-                                    <strong>{{ member.email }}</strong>
-                                    {% if member == user %}
-                                    <span class="badge bg-primary ms-2">You</span>
-                                    {% endif %}
-                                </div>
-                                {% if member != user %}
-                                <form method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to remove {{ member.email }} from this household?');">
-                                    {% csrf_token %}
-                                    <input type="hidden" name="action" value="remove_member">
-                                    <input type="hidden" name="user_id" value="{{ member.id }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger">Remove</button>
-                                </form>
-                                {% endif %}
-                            </div>
-                            {% endfor %}
-                        </div>
+                        <label for="new_household_name" class="form-label">Household Name</label>
+                        <input type="text" class="form-control" id="new_household_name" name="new_household_name" placeholder="e.g., Business Budget" required maxlength="100">
                     </div>
-                    {% endif %}
-                    
-                    <!-- Add New Member Form -->
-                    <div>
-                        <label class="form-label">Add New Member</label>
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="add_member">
-                            <div class="mb-2">
-                                <input type="email" class="form-control" name="email" placeholder="Email address" required>
-                                <small class="form-text text-muted">Enter the email address for the new user. This will be used as their username for login.</small>
-                            </div>
-                            <button type="submit" class="btn btn-success">Create User & Add to Household</button>
-                        </form>
-                        <small class="form-text text-muted d-block mt-2">A new user account will be created. They will be prompted to set a password on first login.</small>
-                    </div>
-                </div>
-                
-                <hr>
-                
-                <div class="d-grid gap-2">
-                    <a href="{% url 'dashboard' %}" class="btn btn-secondary">Back to Dashboard</a>
-                </div>
+                    <button type="submit" class="btn btn-success w-100">Create New Household</button>
+                </form>
             </div>
         </div>
     </div>
 </div>
 {% endblock %}
-
