@@ -82,6 +82,13 @@ class BulkCategoryForm(forms.Form):
         label="Payment Type",
         help_text="Select how these categories should be tracked"
     )
+    is_essential = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        label="Essential",
+        help_text="Check if these categories are essential (will be kept in Barebones template)"
+    )
     names = forms.CharField(
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 5, 'placeholder': 'Enter one category per line'}),
         help_text="Enter one sub-category per line.",

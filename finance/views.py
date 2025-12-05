@@ -267,6 +267,7 @@ def bulk_add_categories(request):
             parent = form.cleaned_data['parent']
             is_persistent = form.cleaned_data['is_persistent']
             payment_type = form.cleaned_data['payment_type']
+            is_essential = form.cleaned_data['is_essential']
             names = form.cleaned_data['names'].splitlines()
             for name in names:
                 name = name.strip()
@@ -277,7 +278,8 @@ def bulk_add_categories(request):
                         type=parent.type,
                         parent=parent,
                         is_persistent=is_persistent,
-                        payment_type=payment_type
+                        payment_type=payment_type,
+                        is_essential=is_essential
                     )
             return redirect('category_list')
     else:
